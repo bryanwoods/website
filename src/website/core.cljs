@@ -19,6 +19,10 @@
 (defn writing-component []
   [section-component "Writing"
    [:p
+    [:a {:href "https://catapult.co/stories/almost-on-catholicism-belief-and-belonging"}
+     "ALMOST"]
+    ", Catapult"]
+   [:p
     [:a {:href "http://thefanzine.com/experience/"} "EXPERIENCE"]
     ", The Fanzine"]
    [:p
@@ -48,7 +52,8 @@
     "Not because it's practical, but because it's funny."
     [:br]
     "You can read its source code "
-    [:a {:href "https://github.com/bryanwoods/website/blob/master/src/website/core.cljs"} "here"]
+    [:a {:href "https://github.com/bryanwoods/website/blob/gh-pages/src/website/core.cljs"}
+     "here"]
     "."]])
 
 (defn music-component []
