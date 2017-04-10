@@ -19,6 +19,10 @@
 (defn writing-component []
   [section-component "Writing"
    [:p
+    [:a {:href "https://electricliterature.com/embracing-the-worst-thing-someone-can-say-to-you-594235b94d26"}
+      "EMBRACING THE WORST THING SOMEONE CAN SAY TO YOU"]
+    ", Interview with Darcie Wilder, Electric Literature"]
+   [:p
     [:a {:href "https://catapult.co/stories/almost-on-catholicism-belief-and-belonging"}
      "ALMOST"]
     ", Catapult"]
