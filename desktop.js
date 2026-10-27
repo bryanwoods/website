@@ -5,7 +5,7 @@ import { RECYCLED } from './recycled.js';
 import { RESUME } from './resume.js';
 
 const CDN = 'https://cdn.jsdelivr.net/npm/98.css@0.1.21/dist';
-const VISITORS = '/api/visitors';   // where visitors' away messages live: tools/serve.mjs here, the Google Sheet's web app (tools/visitors.gs) once it's deployed
+const VISITORS = 'https://script.google.com/macros/s/AKfycbylJz7wB3gsmglRWmgsseErFp6sFF_jLC71Q6zkl9L63NyAcJ9879PNMiz7nYDYbe_9Dw/exec';   // visitors' away messages: a Google Sheet's web app, tools/visitors.gs
 const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const fill = html => (html || '').replaceAll('%n', ME);
 const dur = m => [[Math.floor(m / 60), 'hour'], [m % 60, 'minute']].filter(([v]) => v).map(([v, u]) => `${v} ${u}${v > 1 ? 's' : ''}`).join(', ');
