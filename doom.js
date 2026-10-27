@@ -7,7 +7,10 @@ const MAC = /Mac/.test(navigator.platform);   // there Ctrl and an arrow switch 
 const CFG = Object.entries({   // DOOM's settings file: a Sound Blaster where DOSBox puts one, no mouse, and keys are scancodes
   use_mouse: 0, key_fire: MAC ? 44 : 29, snd_channels: 8, snd_musicdevice: 3, snd_sfxdevice: 3, snd_sbport: 0x220, snd_sbirq: 7, snd_sbdma: 1, snd_mport: 0x330,
 }).map(([k, v]) => `${k}\t\t${v}\r\n`).join('');
-const jsdos = () => (loading ??= new Promise((ok, fail) => document.head.append(Object.assign(document.createElement('script'), { src: `${JSDOS}/js-dos.js`, onload: ok, onerror: fail }))));
+const jsdos = () => (loading ??= new Promise((ok, fail) => document.head.append(Object.assign(document.createElement('script'), { src: `${JSDOS}/js-dos.js`, onload: ok, onerror: fail }))).then(() => {
+  const title = document.title;   // DOSBox names the page after itself; the room keeps its own name
+  new MutationObserver(() => { if (document.title !== title) document.title = title; }).observe(document.querySelector('title'), { childList: true });
+}));
 
 export function doom(open, icon) {
   const w = open('DOOM', 'doom', 76, 20, `<div class="window-body"><div class="crt"><canvas tabindex="0"></canvas><p>Loading DOOM...</p></div></div>

@@ -2,6 +2,7 @@
 // Every name and title here is made up, except the buddy list from buddies.js; the real books on the shelf are listed in props.js.
 import * as THREE from 'three';
 import { ME, listOf, on } from './buddies.js';
+import { ICONS } from './desktop.js';
 
 function canvas(w, h, draw) {
   const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
@@ -15,7 +16,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 
 // the desktop as it looks from across the room, laid out like the real one in desktop.js: three icons, the buddy list, the taskbar
 export function screenTexture() {
-  return canvas(640, 480, (x, w, h) => {
+  const t = canvas(640, 480, (x, w, h) => {
     x.fillStyle = '#008080'; x.fillRect(0, 0, w, h);
     const bevel = (X, Y, W, H, face = '#c0c0c0') => {
       x.fillStyle = face; x.fillRect(X, Y, W, H);
@@ -23,8 +24,10 @@ export function screenTexture() {
       x.fillStyle = '#404040'; x.fillRect(X, Y + H - 1, W, 1); x.fillRect(X + W - 1, Y, 1, H);
     };
     const text = (s, X, Y, color = '#000', font = '11px Tahoma, Verdana, sans-serif') => { x.fillStyle = color; x.font = font; x.fillText(s, X, Y); };
-    ['My Computer', 'Recycle Bin', 'RESUME.doc'].forEach((label, i) => {
-      bevel(26, 8 + i * 70, 32, 30, ['#c0c0c0', '#dfe8e8', '#fff'][i]);
+    ICONS.forEach(([label, svg], i) => {   // the desktop's own icons, drawn in once they have loaded
+      const img = new Image();
+      img.onload = () => { x.drawImage(img, 26, 8 + i * 70, 32, 32); t.needsUpdate = true; };
+      img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="64" height="64">${svg}</svg>`)}`;
       x.textAlign = 'center'; text(label, 42, 55 + i * 70, '#fff'); x.textAlign = 'left';
     });
     const X = 446, Y = 8, W = 184, H = 434;
@@ -50,6 +53,7 @@ export function screenTexture() {
     bevel(64, h - 25, 150, 22, '#e0e0e0'); text(`${ME}'s Buddy List`, 72, h - 9, '#000', 'bold 11px Tahoma, sans-serif');
     bevel(w - 74, h - 25, 70, 22); text('4:47 PM', w - 56, h - 9);
   });
+  return t;
 }
 
 // a photocopied show flyer for Bryan's high school band

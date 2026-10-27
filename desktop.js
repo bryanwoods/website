@@ -25,7 +25,7 @@ const DOC = '<svg class="ico" viewBox="0 0 16 16"><path d="M4 1.5h7l3 3v10H4z" f
 const KIND = { jpg: ['JPEG Image', PIC], gif: ['GIF Image', PIC], txt: ['Text Document', TXT], doc: ['Microsoft Word Document', DOC] };
 const kind = f => KIND[f.name.split('.').pop()];
 const menu = (...items) => `<div class="menubar">${items.map(m => `<span>${m}</span>`).join('')}</div>`;
-const ICONS = [
+export const ICONS = [
   ['My Computer', '<rect x="4" y="3" width="24" height="18" fill="#c0c0c0" stroke="#000"/><rect x="7" y="6" width="18" height="12" fill="#008080" stroke="#404040"/><rect x="9" y="21" width="14" height="4" fill="#c0c0c0" stroke="#000"/><rect x="3" y="25" width="26" height="5" fill="#c0c0c0" stroke="#000"/>'],
   ['Recycle Bin', BIN],
   ['Snood', SNOOD],
