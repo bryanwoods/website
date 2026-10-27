@@ -1,0 +1,3 @@
+yard.mp3: three minutes of "Backyard, suburb, summer, birds, lawnmower" by Teiskube,
+https://freesound.org/people/Teiskube/sounds/712059/ (CC0). Cut from 0:18, mixed to mono,
+raised 31 dB, and crossfaded end to start so it loops.
