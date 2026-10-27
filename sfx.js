@@ -47,5 +47,12 @@ export const SFX = {
   rim(ac, out, k = 0.5) { const t = ac.currentTime; for (const [f, g] of [[1180, 0.06], [1630, 0.05], [2390, 0.035], [3150, 0.02]]) ring(ac, out, f, t, 0.45, g * (0.4 + k)); },
   board(ac, out, k = 0.5) { const t = ac.currentTime; hiss(ac, out, t, 0.05, { freq: 1100, q: 1.2, gain: 0.5 * k }); tone(ac, out, 260, t, 0.05, { gain: 0.2 * k, to: 180 }); },
   swish(ac, out) { hiss(ac, out, ac.currentTime, 0.3, { freq: 3200, q: 0.9, gain: 0.35, wobble: 0.3 }); },
+  // Snood
+  shoot(ac, out) { tone(ac, out, 260, ac.currentTime, 0.09, { type: 'triangle', gain: 0.14, to: 820 }); },
+  pop(ac, out, n = 3) { const t = ac.currentTime; for (let i = 0; i < Math.min(n, 6); i++) tone(ac, out, 700 + i * 90, t + i * 0.045, 0.05, { gain: 0.12, to: 1400 + i * 120 }); },
+  fall(ac, out) { tone(ac, out, 900, ac.currentTime, 0.45, { type: 'triangle', gain: 0.08, to: 220 }); },
+  ceiling(ac, out) { const t = ac.currentTime; tone(ac, out, 110, t, 0.22, { type: 'square', gain: 0.1, to: 45 }); hiss(ac, out, t, 0.15, { freq: 300, q: 0.6, gain: 0.3 }); },
+  lose(ac, out) { const t = ac.currentTime; [392, 330, 262, 196].forEach((f, i) => tone(ac, out, f, t + i * 0.22, 0.2, { type: 'triangle', gain: 0.15 })); },
+  win(ac, out) { const t = ac.currentTime; [523, 659, 784, 1047].forEach((f, i) => tone(ac, out, f, t + i * 0.1, 0.12, { type: 'triangle', gain: 0.14 })); },
   click(ac, out) { hiss(ac, out, ac.currentTime, 0.02, { freq: 2500, q: 1, gain: 0.6 }); tone(ac, out, 1800, ac.currentTime, 0.015, { gain: 0.12 }); },   // a lamp switch
 };

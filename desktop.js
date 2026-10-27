@@ -3,6 +3,8 @@
 import { ME, BUDDIES, listOf, on } from './buddies.js';
 import { RECYCLED } from './recycled.js';
 import { RESUME } from './resume.js';
+import { snood } from './snood.js';
+import { doom } from './doom.js';
 
 const CDN = 'https://cdn.jsdelivr.net/npm/98.css@0.1.21/dist';
 const VISITORS = 'https://script.google.com/macros/s/AKfycbylJz7wB3gsmglRWmgsseErFp6sFF_jLC71Q6zkl9L63NyAcJ9879PNMiz7nYDYbe_9Dw/exec';   // visitors' away messages: a Google Sheet's web app, tools/visitors.gs
@@ -14,6 +16,8 @@ const RUN = 'M9.5 5 7.6 9.4 4.6 13.2M7.6 9.4l3 1.4.4 3.4M8.8 6.4 5.2 7.6M8.8 6.4
 const MAN = `<svg class="man" viewBox="0 0 16 16"><path d="${RUN}" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="${RUN}" fill="none" stroke="#ffd800" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10.6" cy="2.6" r="1.9" fill="#ffd800" stroke="#000" stroke-width=".9"/></svg>`;
 const NOTE = '<svg class="note" viewBox="0 0 10 10"><path d="M1 .5h6l2 2v7H1z" fill="#ffffb0" stroke="#000" stroke-width=".8"/><path d="M2.5 3.5h5M2.5 5.5h5M2.5 7.5h4" stroke="#808080" stroke-width=".7"/></svg>';
 const FLAG = '<svg class="flag" viewBox="0 0 16 14"><path d="M1 2l6-1v5.5L1 7.5z" fill="#e8401c"/><path d="M8 1l7-1v6L8 6.5z" fill="#3cb043"/><path d="M1 8.5l6-1V13L1 14z" fill="#1e64d4"/><path d="M8 7.5l7-.5v6l-7 .5z" fill="#ffc000"/></svg>';
+const SNOOD = '<rect x="3" y="3" width="26" height="26" rx="8" fill="#2f6fe0" stroke="#000"/><ellipse cx="11.5" cy="12" rx="3.4" ry="4.2" fill="#fff" stroke="#000"/><ellipse cx="20.5" cy="12" rx="3.4" ry="4.2" fill="#fff" stroke="#000"/><circle cx="12" cy="13" r="1.7"/><circle cx="21" cy="13" r="1.7"/><path d="M9 18.5q7 8 14 0z" fill="#fff" stroke="#000"/>';   // Jake
+const FIRE = '<defs><linearGradient id="fire" x2="0" y2="1"><stop offset="0" stop-color="#ffe14a"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#b3120a"/></linearGradient></defs><rect x="1" y="7" width="30" height="18" rx="2" fill="#1a0d08" stroke="#000"/><text x="16" y="21.5" text-anchor="middle" font-family="Impact, Haettenschweiler, Arial Black, sans-serif" font-size="13" fill="url(#fire)" stroke="#000" stroke-width=".8" paint-order="stroke">DOOM</text>';   // DOOM in fire, not id's logo
 const BIN = '<path d="M8 9h16l-2 20H10z" fill="#dfe8e8" stroke="#000"/><path d="M9 9l2-5 4 3 3-4 3 4 2-1 1 3z" fill="#fff" stroke="#000"/><path d="M12 12l1 14M16 12v14M20 12l-1 14" stroke="#808080"/>';   // full
 const PIC = '<svg class="ico" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" fill="#fff" stroke="#000"/><path d="M3 12l3.5-4 2.5 3 2-2 2.5 3z" fill="#2a8a3a"/><circle cx="11" cy="5.5" r="1.4" fill="#f0c000"/></svg>';
 const TXT = '<svg class="ico" viewBox="0 0 16 16"><path d="M3 1.5h7l3 3v10H3z" fill="#fff" stroke="#000"/><path d="M5 6h6M5 8h6M5 10h6M5 12h4" stroke="#000080" stroke-width=".8"/></svg>';
@@ -24,6 +28,8 @@ const menu = (...items) => `<div class="menubar">${items.map(m => `<span>${m}</s
 const ICONS = [
   ['My Computer', '<rect x="4" y="3" width="24" height="18" fill="#c0c0c0" stroke="#000"/><rect x="7" y="6" width="18" height="12" fill="#008080" stroke="#404040"/><rect x="9" y="21" width="14" height="4" fill="#c0c0c0" stroke="#000"/><rect x="3" y="25" width="26" height="5" fill="#c0c0c0" stroke="#000"/>'],
   ['Recycle Bin', BIN],
+  ['Snood', SNOOD],
+  ['DOOM', FIRE],
   ['RESUME.doc', '<path d="M7 2h13l6 6v22H7z" fill="#fff" stroke="#000"/><path d="M20 2v6h6" fill="#c0c0c0" stroke="#000"/><rect x="3" y="12" width="15" height="14" fill="#1f4fbf" stroke="#000"/><path d="M5.5 15l2 8 2-6 2 6 2-8" fill="none" stroke="#fff" stroke-width="1.6"/>'],
 ];
 const SUNK = 'box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a';
@@ -69,7 +75,7 @@ const CSS = `
   .im textarea { height: 46px; margin: 0 1px; resize: none; font: 13px Arial, sans-serif; }
   .row { display: flex; gap: 3px; margin: 4px 1px 1px; } .row span { flex: 1; } .row button { min-width: 50px; padding: 0 6px; }
   .info { width: 300px; } .info fieldset { margin: 0 0 6px; } .html { max-height: 120px; padding: 4px 6px; }
-  .alert { width: 260px; } .alert p { display: flex; align-items: center; gap: 10px; margin: 8px 6px 12px; } .alert .man { width: 28px; height: 28px; }
+  .alert { width: 260px; } .alert p { display: flex; align-items: center; gap: 10px; margin: 8px 6px 12px; } .alert p svg { width: 28px; height: 28px; }
   .ok { text-align: center; }
   .drop { position: absolute; left: 6px; top: 38px; z-index: 5; min-width: 150px; padding: 2px; background: silver; box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff; }
   .drop div { padding: 3px 16px; } .drop div:hover { background: #000080; color: #fff; } .drop .off, .drop .off:hover { background: none; color: #808080; }
@@ -96,6 +102,17 @@ const CSS = `
   .sheet h2 { margin: 14px 0 6px; font-size: 12px; letter-spacing: 1px; border-bottom: 1px solid; }
   .sheet .job { margin-bottom: 7px; } .sheet .line { display: flex; justify-content: space-between; gap: 10px; } .sheet .line span { flex: none; white-space: nowrap; } .sheet i { color: #333; } .sheet p { margin: 2px 0 0; }
   .word .status-bar { margin: 3px 1px 0; }
+  .snood .window-body { display: flex; gap: 8px; margin: 4px; }
+  .snood .well { padding: 2px; ${SUNK}; } .snood canvas { display: block; width: 288px; height: 368px; touch-action: none; }
+  .snood .side { width: 92px; display: flex; flex-direction: column; gap: 6px; text-align: center; }
+  .snood fieldset { margin: 0; padding: 2px 4px 5px; } .snood fieldset b { font: bold 16px Arial, sans-serif; }
+  .snood .meter { position: relative; flex: 1; margin: 4px 30px 0; background: linear-gradient(#e02020, #f0d000 45%, #2bb52b); ${SUNK}; }
+  .snood .meter div { position: absolute; top: 2px; left: 2px; right: 2px; max-height: calc(100% - 4px); background: #fff; }
+  .snood .meter.hot { animation: hot .5s steps(1) infinite; } @keyframes hot { 50% { filter: brightness(1.5); } }
+  .doom .window-body { margin: 3px; } .doom .status-bar { margin: 0 3px 3px; }
+  .doom .crt { position: relative; width: 480px; height: 360px; background: #000; }
+  .doom canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; outline: none; }
+  .doom .crt p { position: absolute; left: 0; right: 0; top: 45%; margin: 0; text-align: center; color: #aaa; font: 14px "Courier New", monospace; }
   .props hr { border: 0; border-top: 1px solid #808080; border-bottom: 1px solid #fff; } .props table { background: none; } .props td:first-child { padding-right: 20px; }
 `;
 
@@ -144,7 +161,7 @@ export function desktop(sfx) {
     front(w);
     return w;
   }
-  const alert = text => { const w = open('Instant Message', 'alert', 190, 170, `<div class="window-body"><p>${MAN}${esc(text)}</p><div class="ok"><button>OK</button></div></div>`); w.querySelector('.ok button').onclick = () => w.close(); };
+  const alert = (text, title = 'Instant Message', icon = MAN) => { const w = open(title, 'alert', 190, 170, `<div class="window-body"><p>${icon}${esc(text)}</p><div class="ok"><button>OK</button></div></div>`, icon); w.querySelector('.ok button').onclick = () => w.close(); };
 
   // the buddy list, with a note beside whoever is away. It is alive while you watch: one buddy signs on a few seconds after you sit down,
   // in bold with the door opening, and after that someone comes or goes every minute or so
@@ -308,6 +325,20 @@ export function desktop(sfx) {
       <div class="status-bar">${['Page 1', 'Sec 1', '1/1', 'At 1"', 'Ln 1', 'Col 1'].map(s => `<p class="status-bar-field">${s}</p>`).join('')}</div>`, DOC);
   };
 
+  let game;
+  screen.querySelector('[data-icon="Snood"]').ondblclick = () => {
+    if (game?.isConnected) { game.hidden = false; return front(game); }
+    game = snood(open, sfx, `<svg class="ico" viewBox="0 0 32 32">${SNOOD}</svg>`);
+  };
+
+  let shooter;   // DOOM can't pause, so leaving the computer quits it
+  screen.querySelector('[data-icon="DOOM"]').ondblclick = () => {
+    const icon = `<svg class="ico" viewBox="0 0 32 32">${FIRE}</svg>`;
+    if (touchy) return alert('DOOM needs a keyboard. Try it on a computer.', 'DOOM', icon);
+    if (shooter?.isConnected) { shooter.hidden = false; return front(shooter); }
+    shooter = doom(open, icon);
+  };
+
   for (const icon of screen.querySelectorAll('.icon')) {
     icon.onpointerdown = () => { for (const i of screen.querySelectorAll('.icon')) i.classList.toggle('sel', i === icon); };
     icon.addEventListener('click', () => { if (touchy) icon.ondblclick?.(); });
@@ -316,7 +347,7 @@ export function desktop(sfx) {
 
   return {
     show() { host.style.display = 'block'; requestAnimationFrame(() => { host.style.opacity = 1; }); clearTimeout(live); live = setTimeout(stir, gone.size ? 7000 : 50000); },
-    hide() { host.style.display = 'none'; host.style.opacity = 0; tip.hidden = true; clearTimeout(live); },
+    hide() { if (shooter?.isConnected) shooter.close(); host.style.display = 'none'; host.style.opacity = 0; tip.hidden = true; clearTimeout(live); },
     get visitors() { return api; },   // whether a server keeps visitors' away messages here
     clock(text) { const c = root.querySelector('.clock'); if (c.textContent !== text) c.textContent = text; },
     place(x, y, width, height) { scale = width / 640; host.style.transform = `translate(${x}px, ${y}px) scale(${scale}, ${height / 480})`; },   // over the glass, in page pixels; the glass is a little taller than 4:3
