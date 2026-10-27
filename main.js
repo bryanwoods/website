@@ -18,7 +18,8 @@ const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
 
 const renderer = new THREE.WebGLRenderer({ powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+const phone = matchMedia('(pointer: coarse)').matches;   // a touch screen: lighter rendering, and you drag to look around
+renderer.setPixelRatio(Math.min(devicePixelRatio, phone ? 1 : 1.5));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;   // nothing that casts a shadow moves: draw the shadows once
@@ -47,7 +48,7 @@ const sun = new THREE.DirectionalLight('#ffc98a', 9);
 sun.position.copy(WINDOW.center).addScaledVector(SUN, -9);
 sun.target.position.copy(WINDOW.center).addScaledVector(SUN, 2);
 sun.castShadow = true;
-sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.mapSize.setScalar(phone ? 2048 : 4096);
 Object.assign(sun.shadow.camera, { left: -3.5, right: 3.5, top: 3.5, bottom: -3.5, near: 2, far: 16 });
 sun.shadow.camera.updateProjectionMatrix();
 sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.015; sun.shadow.radius = 2.5;
@@ -176,8 +177,17 @@ addEventListener('resize', resize);
 resize();
 
 // your head turns a little with the pointer, and drifts when you leave it alone
-const mouse = new THREE.Vector2(), look = new THREE.Vector2(), aim = new THREE.Vector3();
-addEventListener('pointermove', e => mouse.set(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1));
+// with a mouse, wherever the pointer is; with a finger, you drag the room around you, far enough to see every wall
+const mouse = new THREE.Vector2(), look = new THREE.Vector2(), aim = new THREE.Vector3(), turn = new THREE.Vector2(), turned = new THREE.Vector2(), UP = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3();
+addEventListener('pointermove', e => { if (e.pointerType === 'mouse') mouse.set(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1); });
+let drag = { moved: 0 };   // so the end of a drag isn't taken for a tap
+renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; });
+renderer.domElement.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'touch' || drag.x == null) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
+  if (!spot) turn.set(THREE.MathUtils.clamp(turn.x - dx / innerWidth * 2.2, -1.45, 1.45), THREE.MathUtils.clamp(turn.y + dy / innerHeight * 1.2, -0.45, 0.45));
+});
 
 const btn = document.getElementById('sound');
 let ac, sound;
@@ -204,20 +214,20 @@ const fit = (h, w) => { const t = 2 * Math.tan(THREE.MathUtils.degToRad(camera.f
 const SPOTS = {
   computer: {
     mesh: props.screen, leave: pc.hide,
-    get hint() { return pc.visitors ? 'Leave Bryan an away message: it goes under Visitors on his buddy list.' : ''; },
+    get hint() { return innerHeight > innerWidth ? 'Turn your phone sideways to use the computer.' : pc.visitors ? 'Leave Bryan an away message: it goes under Visitors on his buddy list.' : ''; },
     enter() { pc.show(); if (!dialed && ac?.state === 'running') { dialed = true; sfx('modem'); } },   // the first time you sit down with the sound on, the modem dials out
     view() {   // square on to the glass, near enough that the screen and a little of the bezel fill the view
       const c = props.screen.getWorldPosition(new THREE.Vector3());
-      return [c.clone().setZ(c.z + fit(0.29, 0.36)), c];
+      return [c.clone().setZ(c.z + fit(0.29, innerHeight > innerWidth ? 0.33 : 0.36)), c];   // on a phone held upright, the glass nearly fills the width
     },
     place() {   // the desktop's HTML over the glass, from where the glass's corners land on the page
       const { width: w, height: h } = props.screen.geometry.parameters, m = props.screen.matrixWorld;
       const tl = new THREE.Vector3(-w / 2, h / 2, 0.006).applyMatrix4(m).project(camera), br = new THREE.Vector3(w / 2, -h / 2, 0.006).applyMatrix4(m).project(camera);   // the glass bulges: its edges stand 6 mm proud
-      pc.place((tl.x + 1) / 2 * innerWidth, (1 - tl.y) / 2 * innerHeight, (br.x - tl.x) / 2 * innerWidth);
+      pc.place((tl.x + 1) / 2 * innerWidth, (1 - tl.y) / 2 * innerHeight, (br.x - tl.x) / 2 * innerWidth, (tl.y - br.y) / 2 * innerHeight);
     },
   },
   newt: {
-    mesh: props.tank.glass, hint: 'Firenewty. Click the water to drop in a bloodworm.',
+    mesh: props.tank.glass, hint: `Firenewty. ${phone ? 'Tap' : 'Click'} the water to drop in a bloodworm.`,
     enter() { props.tank.greet(camera.position); },
     view() {   // down the tank from its water end, under the lid, and clear of the guitar's headstock beside it
       const c = props.tank.glass.getWorldPosition(new THREE.Vector3());
@@ -242,14 +252,17 @@ const SPOTS = {
 };
 let spot = null, fly = null;
 const ray = new THREE.Raycaster();
+ray.params.Line.threshold = 0.005;   // a line (the tank's edges, the guitar's strings) is hit only on it; three.js's default reaches a metre around it
 const hit = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return Object.keys(SPOTS).find(k => ray.intersectObject(SPOTS[k].mesh).length); };
 renderer.domElement.addEventListener('pointermove', e => { const k = hit(e); renderer.domElement.style.cursor = k && (!spot || SPOTS[k] === spot && spot.click) ? 'pointer' : ''; });
-renderer.domElement.addEventListener('click', e => { const k = hit(e); if (!spot?.click?.()) location.hash = spot ? '' : k || ''; });   // a spot can take the click for itself
+renderer.domElement.addEventListener('click', e => { if (drag.moved > 12) return; const k = hit(e); if (!spot?.click?.()) location.hash = spot ? '' : k || ''; });   // a spot can take the click for itself
+const backButton = document.getElementById('back');
+backButton.onclick = back;   // the way out on a phone, which has no Esc key
 addEventListener('keydown', e => { if (e.key === 'Escape' && spot) location.hash = ''; });
 function route() {
   const next = SPOTS[location.hash.slice(1)] || null;
   if (next === spot) return;
-  spot?.leave?.(); spot = next;
+  spot?.leave?.(); spot = next; backButton.hidden = !spot;
   const [to, toLook] = spot ? spot.view() : [HOME, LOOK];
   fly = { from: camera.position.clone(), fromLook: focus.clone(), to, toLook, t0: clock.getElapsedTime() };
 }
@@ -324,6 +337,9 @@ renderer.setAnimationLoop(() => {
   drift += ((spot ? 0 : 1) - drift) * 0.05;
   look.lerp(spot ? still : mouse, 0.035);
   aim.copy(focus).add(new THREE.Vector3((look.x * 1.1 + Math.sin(t * 0.13) * 0.05) * drift, (-look.y * 0.55 + Math.sin(t * 0.11) * 0.03) * drift, 0));
+  turned.lerp(turn, 0.2);
+  aim.sub(camera.position).applyAxisAngle(UP, -turned.x * drift);   // the drag: a turn of the head, then a tilt
+  aim.applyAxisAngle(side.crossVectors(aim, UP).normalize(), turned.y * drift).add(camera.position);
   camera.lookAt(aim);
   camera.updateMatrixWorld();
   if (spot && !fly) spot.place?.();

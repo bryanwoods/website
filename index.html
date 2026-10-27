@@ -6,14 +6,16 @@
 <title>Bedroom, Horseheads</title>
 <style>
   html, body { margin: 0; height: 100%; background: #1a120b; overflow: hidden; font: 13px/1.4 ui-monospace, Menlo, monospace; color: #f3dfc0; }
-  canvas { display: block; }
-  #sound { position: fixed; left: 16px; top: 16px; background: rgba(0,0,0,.25); color: inherit; border: 1px solid currentColor; padding: 6px 10px; font: inherit; cursor: pointer; }
+  canvas { display: block; touch-action: none; }
+  #sound, #back { position: fixed; top: 16px; z-index: 10; background: rgba(0,0,0,.25); color: inherit; border: 1px solid currentColor; padding: 6px 10px; font: inherit; cursor: pointer; }
+  #sound { left: 16px; } #back { right: 16px; }
   #status { position: fixed; left: 16px; bottom: 14px; opacity: .8; transition: opacity 2s; }
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
 </head>
 <body>
 <button id="sound">SOUND ON</button>
+<button id="back" hidden>BACK</button>
 <div id="status">Loading…</div>
 <script type="module" src="main.js"></script>
 </body>

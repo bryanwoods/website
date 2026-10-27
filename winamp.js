@@ -112,7 +112,9 @@ export function winamp({ video, title, side = 'left', onClose }) {
 
   return {
     show() {
-      scale = Math.max(1, Math.min(2, (innerHeight - 40) / 352, innerWidth * 0.5 / 275));
+      const narrow = innerWidth < 700 || innerHeight < 500;   // a phone: Winamp in the middle, as big as fits
+      scale = narrow ? Math.min((innerWidth - 16) / 275, (innerHeight - 40) / 352) : Math.max(1, Math.min(2, (innerHeight - 40) / 352, innerWidth * 0.5 / 275));
+      stack.style.left = stack.style.right = narrow ? '0' : ''; if (!narrow) stack.style[side] = '5vw'; stack.style.justifyContent = narrow ? 'center' : '';
       $('.zoom').style.zoom = scale; stack.hidden = false;
       if (!ready) load(); else ready.then(() => player.playVideo());
       draw();

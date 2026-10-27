@@ -29,10 +29,11 @@ const ICONS = [
 const SUNK = 'box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a';
 const CSS = `
   [hidden] { display: none !important; }
-  .screen { position: relative; width: 640px; height: 480px; overflow: hidden; background: #008080; color: #000; font: 11px "Pixelated MS Sans Serif", Arial, sans-serif; user-select: none; cursor: default; }
+  .screen { position: relative; width: 640px; height: 480px; overflow: hidden; background: #008080; color: #000; font: 11px "Pixelated MS Sans Serif", Arial, sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: default; }
   .screen::after { content: ''; position: absolute; inset: 0; z-index: 100002; pointer-events: none;   /* the glass: scanlines, and the tube darker toward its edges */
     background: repeating-linear-gradient(rgba(0,0,0,.08) 0 1px, transparent 1px 3px); box-shadow: inset 0 0 70px rgba(0,0,0,.5), inset 0 0 12px rgba(0,0,0,.6); }
   .screen > .window { position: absolute; }
+  .title-bar { touch-action: none; }   /* a finger drags the window, not the page */
   .title-bar-text { display: flex; align-items: center; gap: 3px; min-width: 0; }
   .title-bar-text span, .task span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .man { width: 14px; height: 14px; flex: none; } .note { width: 10px; height: 10px; flex: none; } .flag { width: 16px; height: 14px; }
@@ -102,7 +103,7 @@ export function desktop(sfx) {
   // a shadow root ignores @font-face, so the pixel font is declared on the page
   document.head.insertAdjacentHTML('beforeend', `<style>@font-face{font-family:"Pixelated MS Sans Serif";src:url(${CDN}/ms_sans_serif.woff2) format("woff2")}@font-face{font-family:"Pixelated MS Sans Serif";font-weight:700;src:url(${CDN}/ms_sans_serif_bold.woff2) format("woff2")}</style>`);
   const host = document.createElement('div');
-  host.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:480px;transform-origin:0 0;display:none;opacity:0;transition:opacity .35s;border-radius:12px;overflow:hidden;z-index:2';
+  host.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:480px;transform-origin:0 0;display:none;opacity:0;transition:opacity .35s;border-radius:12px;overflow:hidden;z-index:2;touch-action:manipulation';
   document.body.append(host);
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `<link rel="stylesheet" href="${CDN}/98.css"><style>${CSS}</style><div class="screen">
@@ -110,7 +111,8 @@ export function desktop(sfx) {
     <div class="taskbar"><button class="start">${FLAG}Start</button><div class="tasks"></div><div class="tray">${MAN}<span class="clock">4:47 PM</span></div></div>
     <div class="tip" hidden></div></div>`;
   const screen = root.querySelector('.screen'), tasks = root.querySelector('.tasks'), tip = root.querySelector('.tip');
-  let scale = 1, z = 1;
+  let scale = 1, z = 1, touchy = false;   // touchy: the last press was a finger, so a tap does what a double-click does
+  screen.addEventListener('pointerdown', e => { touchy = e.pointerType === 'touch'; }, true);
 
   // the window you touch comes to the top with a blue title bar and a pressed taskbar button; the rest go grey
   function front(w) {
@@ -203,7 +205,17 @@ export function desktop(sfx) {
     render(); live = setTimeout(stir, 50000 + Math.random() * 50000);
   }
   const pick = e => { for (const li of tree.querySelectorAll('.buddy')) li.classList.toggle('sel', li === e.target.closest('.buddy')); return (picked = who(e)); };
-  tree.onclick = e => { if (e.target.closest('.leave')) return awayMessage(); if (pick(e) && (e.metaKey || e.ctrlKey)) info(picked); };
+  let press = 0, pressed = false;   // a long press on a buddy is a right-click
+  tree.onpointerdown = e => {   // the target is kept: an event inside a shadow root loses it once it has been dispatched
+    const held = { target: e.target }; pressed = false; clearTimeout(press);
+    if (e.pointerType === 'touch') press = setTimeout(() => { if (pick(held)) { pressed = true; info(picked); } }, 550);
+  };
+  tree.onpointerup = tree.onpointercancel = () => clearTimeout(press);
+  tree.onclick = e => {
+    if (e.target.closest('.leave')) return awayMessage();
+    if (touchy) { if (!pressed && pick(e)) im(picked); return; }
+    if (pick(e) && (e.metaKey || e.ctrlKey)) info(picked);
+  };
   tree.oncontextmenu = e => { e.preventDefault(); if (pick(e)) info(picked); };   // a right-click, or a control-click on a Mac, opens the profile
   tree.ondblclick = e => { const b = who(e); if (b) im(b); };
   tree.onmouseover = e => {
@@ -264,6 +276,7 @@ export function desktop(sfx) {
       if (f) about.innerHTML = `<b>${esc(f.name)}</b><br>${kind(f)[0]}<br><br>Original location:<br>${esc(f.from)}<br><br>Deleted: ${f.deleted}`;
     };
     rows.ondblclick = e => { const f = file(e); if (f) (f.text == null ? properties : read)(f); };
+    rows.addEventListener('click', e => { if (touchy) rows.ondblclick(e); });
   }
   function properties(f) {   // a deleted picture can't be opened, only looked at
     const w = open(`${f.name} Properties`, 'props', 190, 80, `<div class="window-body">
@@ -295,7 +308,10 @@ export function desktop(sfx) {
       <div class="status-bar">${['Page 1', 'Sec 1', '1/1', 'At 1"', 'Ln 1', 'Col 1'].map(s => `<p class="status-bar-field">${s}</p>`).join('')}</div>`, DOC);
   };
 
-  for (const icon of screen.querySelectorAll('.icon')) icon.onpointerdown = () => { for (const i of screen.querySelectorAll('.icon')) i.classList.toggle('sel', i === icon); };
+  for (const icon of screen.querySelectorAll('.icon')) {
+    icon.onpointerdown = () => { for (const i of screen.querySelectorAll('.icon')) i.classList.toggle('sel', i === icon); };
+    icon.addEventListener('click', () => { if (touchy) icon.ondblclick?.(); });
+  }
   screen.onpointerdown = e => { if (e.target === screen) for (const i of screen.querySelectorAll('.icon')) i.classList.remove('sel'); };
 
   return {
@@ -303,6 +319,6 @@ export function desktop(sfx) {
     hide() { host.style.display = 'none'; host.style.opacity = 0; tip.hidden = true; clearTimeout(live); },
     get visitors() { return api; },   // whether a server keeps visitors' away messages here
     clock(text) { const c = root.querySelector('.clock'); if (c.textContent !== text) c.textContent = text; },
-    place(x, y, width) { scale = width / 640; host.style.transform = `translate(${x}px, ${y}px) scale(${scale})`; },   // over the glass, in page pixels
+    place(x, y, width, height) { scale = width / 640; host.style.transform = `translate(${x}px, ${y}px) scale(${scale}, ${height / 480})`; },   // over the glass, in page pixels; the glass is a little taller than 4:3
   };
 }
