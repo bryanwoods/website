@@ -13,6 +13,7 @@ import { startSound } from './sound.js';
 import { desktop } from './desktop.js';
 import { winamp } from './winamp.js';
 import { SFX } from './sfx.js';
+import { foam } from './foam.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -181,7 +182,8 @@ resize();
 const mouse = new THREE.Vector2(), look = new THREE.Vector2(), aim = new THREE.Vector3(), turn = new THREE.Vector2(), turned = new THREE.Vector2(), UP = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3();
 addEventListener('pointermove', e => { if (e.pointerType === 'mouse') mouse.set(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1); });
 let drag = { moved: 0 };   // so the end of a drag isn't taken for a tap
-renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; });
+renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; spot?.press?.(e); });
+renderer.domElement.addEventListener('pointerup', e => spot?.release?.(e));
 renderer.domElement.addEventListener('pointermove', e => {
   if (e.pointerType !== 'touch' || drag.x == null) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -204,9 +206,10 @@ Object.assign(window, { THREE, scene, camera, sun, renderer, props, beam });
 
 // the things you can click: a click flies you to a close view of one, and Esc or a click anywhere in the room flies you back.
 // The view is in the address (#computer), so the back button and a shared link both work.
-const sfx = name => { if (ac?.state === 'running') SFX[name](ac, ac.destination); };   // only once SOUND ON has started the audio
+const sfx = (name, k) => { if (ac?.state === 'running') SFX[name](ac, ac.destination, k); };   // only once SOUND ON has started the audio
 const pc = desktop(sfx), back = () => { location.hash = ''; };
 let dialed = false;
+const game = foam(scene, camera, props.hoop, sfx, text => say(text, 4000));   // the foam basketballs
 // Thrasher's "Classics" upload of Muska's part: Bryan's link (wUxEhn7mhG0) and the full Shorty's video refuse to play outside youtube.com
 const muska = winamp({ video: '8kRTFNU4ZaE', title: "CHAD MUSKA - FULFILL THE DREAM (SHORTY'S 1998)", onClose: back });
 const band = winamp({ video: 'RUUP4kkl6Z0', title: 'FACE DOWN IN MEXICO CITY WITH AN ICE PICK IN THE BACK - SHANGHAI THE SAILOR', side: 'right', onClose: back });   // Bryan's college band
@@ -242,8 +245,17 @@ const SPOTS = {
       return [c.clone().add(new THREE.Vector3(-0.8, 0.12, 0)), c];
     },
   },
+  hoop: {
+    mesh: props.hoop.group, ...game,
+    click: () => true,   // here a click is part of a throw, not a way out
+    hint: `${phone ? 'Swipe' : 'Drag'} up and let go to shoot. Longer goes farther.`,
+    view() {   // standing in the middle of the room, a step and a half back from the hoop, the rim a little above your eyes
+      const r = props.hoop.rim;
+      return [new THREE.Vector3(r.x + 0.18, 1.32, r.z + 1.45), r.clone().setY(r.y + 0.05)];
+    },
+  },
   guitar: {
-    mesh: props.guitar, enter: band.show, leave: band.hide,
+    mesh: [props.guitar, props.demo], enter: band.show, leave: band.hide,
     view() {   // in front of the guitar and off to its right, so the bookshelf stays out of the view; the guitar left of centre, Winamp on the right
       const c = new THREE.Box3().setFromObject(props.guitar).getCenter(new THREE.Vector3());
       return [c.clone().add(new THREE.Vector3(0.6, 0.05, 0.9)), c.add(new THREE.Vector3(0.22, 0, 0))];
@@ -253,7 +265,7 @@ const SPOTS = {
 let spot = null, fly = null;
 const ray = new THREE.Raycaster();
 ray.params.Line.threshold = 0.005;   // a line (the tank's edges, the guitar's strings) is hit only on it; three.js's default reaches a metre around it
-const hit = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return Object.keys(SPOTS).find(k => ray.intersectObject(SPOTS[k].mesh).length); };
+const hit = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return Object.keys(SPOTS).find(k => ray.intersectObjects([SPOTS[k].mesh].flat()).length); };
 renderer.domElement.addEventListener('pointermove', e => { const k = hit(e); renderer.domElement.style.cursor = k && (!spot || SPOTS[k] === spot && spot.click) ? 'pointer' : ''; });
 renderer.domElement.addEventListener('click', e => { if (drag.moved > 12) return; const k = hit(e); if (!spot?.click?.()) location.hash = spot ? '' : k || ''; });   // a spot can take the click for itself
 const backButton = document.getElementById('back');
@@ -343,6 +355,7 @@ renderer.setAnimationLoop(() => {
   camera.lookAt(aim);
   camera.updateMatrixWorld();
   if (spot && !fly) spot.place?.();
+  game.tick(t);
   room.tick(t);
   props.tick(t);
   dusk(t);

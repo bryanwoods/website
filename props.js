@@ -217,18 +217,20 @@ function cigarBox(g, x, y, z) {
 
 // a mini hoop screwed to the wall: a clear acrylic backboard on four standoffs, an orange steel rim on its bracket, net hooks, a white nylon net
 function hoop(g, x, y) {
+  const h = new THREE.Group(); g.add(h);   // its own group, so a click on any part of it finds the hoop
   const z = -2.0, orange = new THREE.MeshStandardMaterial({ color: '#e2501f', roughness: 0.35, metalness: 0.3 });
   const acrylic = new THREE.MeshPhysicalMaterial({ map: backboardTexture(), transparent: true, roughness: 0.05, clearcoat: 1, envMapIntensity: 3 });
   const edge = new THREE.MeshPhysicalMaterial({ color: '#dfe9ec', transparent: true, opacity: 0.6, roughness: 0.05 });
-  add(g, B(0.46, 0.32, 0.006), [edge, edge, edge, edge, acrylic, acrylic], x, y, z + 0.03).castShadow = false;
-  for (const [u, v] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) add(g, new THREE.CylinderGeometry(0.006, 0.006, 0.027, 12).rotateX(Math.PI / 2), M.silver, x + u * 0.2, y + v * 0.13, z + 0.0135);
+  add(h, B(0.46, 0.32, 0.006), [edge, edge, edge, edge, acrylic, acrylic], x, y, z + 0.03).castShadow = false;
+  for (const [u, v] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) add(h, new THREE.CylinderGeometry(0.006, 0.006, 0.027, 12).rotateX(Math.PI / 2), M.silver, x + u * 0.2, y + v * 0.13, z + 0.0135);
   const ry = y - 0.12, rz = z + 0.035 + 0.11;
-  add(g, R(0.09, 0.06, 0.012, 0.003), orange, x, ry + 0.01, z + 0.039);   // the mounting plate
-  add(g, R(0.03, 0.012, 0.075, 0.003), orange, x, ry - 0.002, z + 0.075);   // the bracket out to the rim
-  add(g, new THREE.TorusGeometry(0.105, 0.0075, 12, 48), orange, x, ry, rz, [Math.PI / 2, 0, 0]);
-  for (let k = 0; k < 12; k++) { const a = (k + 0.5) / 12 * Math.PI * 2; add(g, new THREE.TorusGeometry(0.006, 0.0015, 6, 10), M.silver, x + Math.sin(a) * 0.105, ry - 0.008, rz + Math.cos(a) * 0.105, [0, a + Math.PI / 2, 0]); }
-  add(g, new THREE.LatheGeometry([[0.104, 0], [0.098, -0.04], [0.085, -0.1], [0.07, -0.16]].map(([r, h]) => new THREE.Vector2(r, h)), 24),
+  add(h, R(0.09, 0.06, 0.012, 0.003), orange, x, ry + 0.01, z + 0.039);   // the mounting plate
+  add(h, R(0.03, 0.012, 0.075, 0.003), orange, x, ry - 0.002, z + 0.075);   // the bracket out to the rim
+  add(h, new THREE.TorusGeometry(0.105, 0.0075, 12, 48), orange, x, ry, rz, [Math.PI / 2, 0, 0]);
+  for (let k = 0; k < 12; k++) { const a = (k + 0.5) / 12 * Math.PI * 2; add(h, new THREE.TorusGeometry(0.006, 0.0015, 6, 10), M.silver, x + Math.sin(a) * 0.105, ry - 0.008, rz + Math.cos(a) * 0.105, [0, a + Math.PI / 2, 0]); }
+  const net = add(h, new THREE.LatheGeometry([[0.104, 0], [0.098, -0.04], [0.085, -0.1], [0.07, -0.16]].map(([r, h]) => new THREE.Vector2(r, h)), 24),
     new THREE.MeshStandardMaterial({ map: netTexture(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.85 }), x, ry - 0.006, rz);
+  return { group: h, net, rim: new THREE.Vector3(x, ry, rz), board: new THREE.Box3(new THREE.Vector3(x - 0.23, y - 0.16, z), new THREE.Vector3(x + 0.23, y + 0.16, z + 0.033)) };
 }
 
 const weave = (() => {   // a fine, uneven weave, tinted by each piece's colour
@@ -469,7 +471,7 @@ function mess(g, top) {
   jewelCase(g, -0.99, 0.13, 2.2, 'relationship-of-command', true);
   jewelCase(g, -1.13, 0.21, 2.4, 'its-dark-and-hell-is-hot');
   const disc = new THREE.MeshPhysicalMaterial({ map: cdShine(), metalness: 0.45, roughness: 0.18, iridescence: 1, iridescenceIOR: 1.3 });   // fully metal reads black in a room this dim in reflections
-  add(g, ring, disc, -0.8, 0.001, 0.42);   // shiny side up
+  const demo = add(g, ring, disc, -0.8, 0.001, 0.42);   // shiny side up: the band's demo, which plays its video like the guitar
   add(g, ring, new THREE.MeshStandardMaterial({ map: img('assets/cds/its-dark-and-hell-is-hot-disc.jpg'), roughness: 0.35 }), -1.11, 0.0135, 0.22, [0, 0.7, 0]);   // printed side up, on its case
   // the wastebasket, overflowing, and the shots that missed
   add(g, new THREE.CylinderGeometry(0.13, 0.11, 0.28, 32, 1, true), new THREE.MeshStandardMaterial({ color: '#8f9399', roughness: 0.6, side: THREE.DoubleSide }), -1.62, 0.14, -1.18);
@@ -492,6 +494,7 @@ function mess(g, top) {
     bumpMap: weave, bumpScale: 1.5, roughness: 1, side: THREE.DoubleSide });
   add(g, drape(0.78, 0.78, 0.46, 4.1), hoodie, -1.0, 0.972, -0.805, [0.18, 0, 0]);
   dishes(g, top);
+  return demo;
 }
 
 const loader = new GLTFLoader();
@@ -647,7 +650,7 @@ export async function buildProps(scene) {
   cup(g, 'red', 0.62, WINDOW.y0, -1.94, { fill: 0.2 });   // on the window sill
   poster(g, img('assets/posters/tupac.jpg'), 0.6, 0.8, -1.05, 1.66, -1.995, 0, 0.025);   // David LaChapelle's 1996 photo; needs a licence before this is public
   poster(g, conformityPoster(), 0.46, 0.69, -1.795, 1.6, -0.5, Math.PI / 2, -0.035);
-  hoop(g, -0.42, 1.62);
+  const basket = hoop(g, -0.42, 1.62);
   await laundry(g);
   poster(g, img('assets/posters/nirvana.jpg'), 0.58, 0.91, 1.795, 1.6, -1.0, -Math.PI / 2, 0.02);   // over the bed; a licensed band photo, so it needs a licence before this is public
   crucifix(g, 1.798, 1.42, -1.62);
@@ -669,7 +672,7 @@ export async function buildProps(scene) {
     m.material = m.material.clone(); m.material.map = map.clone(); m.material.map.image = c; m.material.map.needsUpdate = true; m.material.color.set('#2d63c4');
   });
   fillShelves(g, shelf);
-  mess(g, top);
+  const demo = mess(g, top);
   const dTop = dresser.box.max.y, dz = -0.5, dx = dresser.box.max.x - 0.24;
   hifi(g, dx + 0.02, dTop, dz + 0.01, Math.PI / 2);
   can(g, dx + 0.05, dTop + 0.283, dz - 0.04, { rotY: 2 });   // on top of the CD changer
@@ -681,5 +684,5 @@ export async function buildProps(scene) {
   await iversons(g);
   const deck = await muskaDeck(g);
   trophy(g, dx - 0.06, shelf.box.max.y, (shelf.box.min.z + shelf.box.max.z) / 2, 0.22, 'figure');
-  return { screen, tick: tank.tick, tank, deck, guitar, lamp: lamp.o };
+  return { screen, tick: tank.tick, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo };
 }

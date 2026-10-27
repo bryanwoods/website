@@ -12,6 +12,10 @@ function hiss(ac, out, t0, dur, { freq = 1800, q = 0.7, gain = 0.15, wobble = 0 
   const s = new AudioBufferSourceNode(ac, { buffer: b }), g = new GainNode(ac, { gain });
   s.connect(new BiquadFilterNode(ac, { type: 'bandpass', frequency: freq, Q: q })).connect(g).connect(out); s.start(t0);
 }
+function ring(ac, out, f, t0, dur, gain) {   // a struck metal partial, dying away
+  const o = new OscillatorNode(ac, { frequency: f }), g = new GainNode(ac, { gain });
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g).connect(out); o.start(t0); o.stop(t0 + dur);
+}
 function creak(ac, out, t0, dur, from, to, gain) {   // a door hinge: a slow buzz of tiny clicks, rung through the wood
   const o = new OscillatorNode(ac, { type: 'sawtooth', frequency: from }), g = new GainNode(ac, { gain: 0 });
   o.frequency.linearRampToValueAtTime((from + to) * 0.65, t0 + dur * 0.5); o.frequency.linearRampToValueAtTime(to, t0 + dur);
@@ -38,5 +42,10 @@ export const SFX = {
   },
   inbound(ac, out) { const t = ac.currentTime; tone(ac, out, 587, t, 0.07, { type: 'triangle', gain: 0.16 }); tone(ac, out, 880, t + 0.08, 0.13, { type: 'triangle', gain: 0.16 }); },
   outbound(ac, out) { tone(ac, out, 500, ac.currentTime, 0.1, { gain: 0.16, to: 1100 }); },
+  // the foam basketballs; k is how hard the hit was, 0 to 1
+  bounce(ac, out, k = 0.5) { const t = ac.currentTime; tone(ac, out, 150, t, 0.07, { gain: 0.25 * k, to: 80 }); hiss(ac, out, t, 0.03, { freq: 500, q: 0.7, gain: 0.2 * k }); },
+  rim(ac, out, k = 0.5) { const t = ac.currentTime; for (const [f, g] of [[1180, 0.06], [1630, 0.05], [2390, 0.035], [3150, 0.02]]) ring(ac, out, f, t, 0.45, g * (0.4 + k)); },
+  board(ac, out, k = 0.5) { const t = ac.currentTime; hiss(ac, out, t, 0.05, { freq: 1100, q: 1.2, gain: 0.5 * k }); tone(ac, out, 260, t, 0.05, { gain: 0.2 * k, to: 180 }); },
+  swish(ac, out) { hiss(ac, out, ac.currentTime, 0.3, { freq: 3200, q: 0.9, gain: 0.35, wobble: 0.3 }); },
   click(ac, out) { hiss(ac, out, ac.currentTime, 0.02, { freq: 2500, q: 1, gain: 0.6 }); tone(ac, out, 1800, ac.currentTime, 0.015, { gain: 0.12 }); },   // a lamp switch
 };
