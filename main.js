@@ -217,6 +217,7 @@ const under = Object.assign(document.createElement('div'), { hidden: true });   
 under.style.cssText = 'position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at 50% -10%, rgba(170,240,215,.15), rgba(15,85,70,.5))';
 document.body.append(under);
 let walk = null;   // where you are walking to in the tank, and where you look on the way
+const squash = (s, b = props.bag) => { b.userData.y ??= b.position.y; b.scale.y = s; b.position.y = b.userData.y * s; };   // from the floor up: its middle is its origin
 const game = foam(scene, camera, props.hoop, sfx, text => say(text, 4000));   // the foam basketballs
 // Thrasher's "Classics" upload of Muska's part: Bryan's link (wUxEhn7mhG0) and the full Shorty's video refuse to play outside youtube.com
 const muska = winamp({ video: '8kRTFNU4ZaE', title: "CHAD MUSKA - FULFILL THE DREAM (SHORTY'S 1998)", onClose: back });
@@ -278,6 +279,13 @@ const SPOTS = {
       const c = props.news.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0, -0.2));
       return [c.clone().add(new THREE.Vector3(fit(0.42, 0.8), 0, 0)), c];
     },
+  },
+  bag: {   // plopped down on the beanbag under the window, looking back across the room toward the door
+    mesh: props.bag, free: true, hint: `You're on the beanbag. ${phone ? 'Drag' : 'Move the mouse'} to look around.`,
+    view: () => [new THREE.Vector3(0.45, 0.74, -1.48), new THREE.Vector3(-1.0, 0.86, 0.8)],
+    enter() { sfx('plop'); },
+    leave() { squash(1); },
+    place() { squash(props.bag.scale.y + (0.92 - props.bag.scale.y) * 0.2); },   // the beans settle under you
   },
   muska: {
     mesh: props.deck, enter: muska.show, leave: muska.hide,

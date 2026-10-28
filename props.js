@@ -290,6 +290,38 @@ function framedStory(g, x, y, z) {
   return f;
 }
 
+// a cool-mist humidifier on the carpet by the door, the kind every bedroom ran through a Horseheads winter: a white base with its knob and a
+// green power light, a see-through blue tank about half full, the mist nozzle on top, and its cord to the outlet on the wall behind
+function humidifier(g, x, z) {
+  const h = new THREE.Group(); h.position.set(x, 0, z); h.rotation.y = Math.PI; g.add(h);   // its front to the room
+  const white = new THREE.MeshStandardMaterial({ color: '#ecebe5', roughness: 0.5 });
+  add(h, R(0.32, 0.1, 0.19, 0.03), white, 0, 0.05, 0);
+  add(h, R(0.28, 0.2, 0.17, 0.035), new THREE.MeshStandardMaterial({ color: '#4f9ff0', roughness: 0.15, transparent: true, opacity: 0.5, depthWrite: false }), 0, 0.2, 0).castShadow = false;
+  add(h, R(0.265, 0.09, 0.155, 0.03), new THREE.MeshStandardMaterial({ color: '#1f6fd8', roughness: 0.1, transparent: true, opacity: 0.65, depthWrite: false }), 0, 0.15, 0).castShadow = false;   // the water
+  add(h, R(0.29, 0.03, 0.18, 0.012), white, 0, 0.315, 0);
+  add(h, new THREE.CylinderGeometry(0.028, 0.034, 0.05, 24), white, 0.07, 0.355, 0);
+  add(h, new THREE.CircleGeometry(0.02, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#2a2a2a' }), 0.07, 0.381, 0);
+  add(h, new THREE.CylinderGeometry(0.02, 0.02, 0.014, 24).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#9da3a8', roughness: 0.4 }), -0.08, 0.055, 0.098);   // the knob
+  add(h, new THREE.SphereGeometry(0.004, 10, 8), new THREE.MeshBasicMaterial({ color: '#3dff6a' }), 0.0, 0.07, 0.096);
+  const plug = new THREE.Vector3(x - 0.22, 0.29, 1.993);   // the outlet, 30 cm up the wall
+  add(g, B(0.07, 0.115, 0.006), white, plug.x, plug.y, 1.997);
+  add(g, B(0.04, 0.03, 0.025), white, plug.x, plug.y + 0.02, 1.985);
+  const cord = new THREE.CatmullRomCurve3([new THREE.Vector3(x + 0.12, 0.03, z + 0.09), new THREE.Vector3(x + 0.05, 0.004, z + 0.13), new THREE.Vector3(plug.x + 0.05, 0.004, 1.95), new THREE.Vector3(plug.x, 0.1, 1.975), new THREE.Vector3(plug.x, plug.y + 0.005, 1.975)]);
+  add(g, new THREE.TubeGeometry(cord, 60, 0.0025, 6), white);
+  // the mist: soft puffs that rise out of the nozzle, spread, drift, and thin out
+  const c = Object.assign(document.createElement('canvas'), { width: 64, height: 64 }), x2 = c.getContext('2d'), rg = x2.createRadialGradient(32, 32, 0, 32, 32, 32);
+  rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(1, 'rgba(255,255,255,0)'); x2.fillStyle = rg; x2.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c), mouth = new THREE.Vector3(x - 0.07, 0.385, z), puffs = [];   // the nozzle, turned round with the rest
+  for (let i = 0; i < 26; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: '#f4f8ff', transparent: true, depthWrite: false, opacity: 0 })); s.userData.t0 = i / 26 * 3.2; g.add(s); puffs.push(s); }
+  return t => {
+    for (const s of puffs) {
+      const a = ((t + s.userData.t0) % 3.2) / 3.2;   // each puff's age, 0 to 1
+      s.position.set(mouth.x + Math.sin(t * 0.7 + s.userData.t0 * 3) * 0.03 * a, mouth.y + a * 0.42, mouth.z - a * 0.05);
+      s.scale.setScalar(0.04 + a * 0.16); s.material.opacity = 0.32 * Math.sin(Math.PI * Math.min(1, a * 1.3));
+    }
+  };
+}
+
 // a twin captain's bed along the right wall, its head under the window, with drawers underneath
 function bed(g) {
   const x0 = 0.82, x1 = 1.8, z0 = -2.0, z1 = -0.05, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, base = 0.36;
@@ -409,7 +441,7 @@ function beanbag(g, x, z) {
     p.setXYZ(i, v.x * wr * 1.08, y, v.z * wr);
   }
   geo.computeVertexNormals(); geo.computeBoundingBox();
-  add(g, geo, new THREE.MeshPhysicalMaterial({ color: '#0a0a0c', roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.2, bumpMap: weave, bumpScale: 0.5 }), x, -geo.boundingBox.min.y, z, [0, Math.PI, 0]);
+  return add(g, geo, new THREE.MeshPhysicalMaterial({ color: '#0a0a0c', roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.2, bumpMap: weave, bumpScale: 0.5 }), x, -geo.boundingBox.min.y, z, [0, Math.PI, 0]);
 }
 
 const ring = new THREE.RingGeometry(0.0075, 0.06, 48).rotateX(-Math.PI / 2);   // a CD, lying flat
@@ -480,7 +512,7 @@ function mess(g, top) {
     magazine(g, img(`assets/magazines/${f}.jpg`), x, z, i * 0.0042, r, rs ? 0.25 : 0.21, rs ? 0.302 : 0.273);
   });
   magazine(g, magazineSpread(), 0.52, 0.08, 0, -0.5, 0.42);
-  beanbag(g, 0.45, -1.58);
+  const bag = beanbag(g, 0.45, -1.58);
   // CDs out of their tower: In Utero, Relationship of Command lying open, and It's Dark and Hell Is Hot with its disc on top, and one disc loose
   jewelCase(g, -1.2, 0.06, 0.2, 'in-utero');
   jewelCase(g, -0.99, 0.13, 2.2, 'relationship-of-command', true);
@@ -509,7 +541,7 @@ function mess(g, top) {
     bumpMap: weave, bumpScale: 1.5, roughness: 1, side: THREE.DoubleSide });
   add(g, drape(0.78, 0.78, 0.46, 4.1), hoodie, -1.0, 0.972, -0.805, [0.18, 0, 0]);
   dishes(g, top);
-  return demo;
+  return { demo, bag };
 }
 
 const loader = new GLTFLoader();
@@ -687,7 +719,7 @@ export async function buildProps(scene) {
     m.material = m.material.clone(); m.material.map = map.clone(); m.material.map.image = c; m.material.map.needsUpdate = true; m.material.color.set('#2d63c4');
   });
   fillShelves(g, shelf);
-  const demo = mess(g, top);
+  const { demo, bag } = mess(g, top);
   const dTop = dresser.box.max.y, dz = -0.5, dx = dresser.box.max.x - 0.24;
   hifi(g, dx + 0.02, dTop, dz + 0.01, Math.PI / 2);
   can(g, dx + 0.05, dTop + 0.283, dz - 0.04, { rotY: 2 });   // on top of the CD changer
@@ -699,5 +731,6 @@ export async function buildProps(scene) {
   await iversons(g);
   const deck = await muskaDeck(g);
   trophy(g, dx - 0.06, shelf.box.max.y, (shelf.box.min.z + shelf.box.max.z) / 2, 0.22, 'figure');
-  return { screen, tick: tank.tick, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news };
+  const mist = humidifier(g, -1.05, 1.82);
+  return { screen, tick: t => { tank.tick(t); mist(t); }, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news, bag };
 }

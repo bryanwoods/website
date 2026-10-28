@@ -77,6 +77,23 @@ export function buildRoom(scene) {
   g.add(box(0.015, 0.09, z1 - z0, trim, x0 + 0.008, 0.045, 0));
   g.add(box(0.015, 0.09, z1 - z0, trim, x1 - 0.008, 0.045, 0));
 
+  // the door out to the hall, behind you as you come in: a six-panel door painted white, its casing, a brass knob, and the light switch by the latch
+  const D = { x: 0.95, w: 0.8, h: 2.03 }, cw2 = 0.07, brass = new THREE.MeshStandardMaterial({ color: '#c9a646', metalness: 1, roughness: 0.3 });
+  const door = new THREE.MeshStandardMaterial({ color: '#ebe6d8', roughness: 0.4 }), bevel = new THREE.MeshStandardMaterial({ color: '#d6cfbd', roughness: 0.5 });   // years of hands on the paint
+  g.add(box(D.w + 0.006, D.h + 0.003, 0.01, new THREE.MeshStandardMaterial({ color: '#2e2922', roughness: 1 }), D.x, D.h / 2, z1 - 0.003));   // the gap round the door, dark
+  g.add(box(D.w, D.h, 0.035, door, D.x, D.h / 2, z1 - 0.012));
+  for (const [cy, ph] of [[1.78, 0.32], [1.2, 0.62], [0.48, 0.62]]) for (const s of [-1, 1]) {   // six raised panels, each in a bevelled sink
+    g.add(box(0.3, ph + 0.03, 0.004, bevel, D.x + s * 0.19, cy, z1 - 0.031));
+    g.add(box(0.26, ph - 0.01, 0.01, door, D.x + s * 0.19, cy, z1 - 0.035));
+  }
+  for (const s of [-1, 1]) g.add(box(cw2, D.h + cw2, 0.018, trim, D.x + s * (D.w + cw2) / 2, (D.h + cw2) / 2, z1 - 0.009));
+  g.add(box(D.w + 2 * cw2, cw2, 0.018, trim, D.x, D.h + cw2 / 2, z1 - 0.009));
+  for (const [a, b] of [[x0, D.x - D.w / 2 - cw2], [D.x + D.w / 2 + cw2, x1]]) g.add(box(b - a, 0.09, 0.015, trim, (a + b) / 2, 0.045, z1 - 0.008));   // baseboards either side
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.026, 20, 14), brass); knob.position.set(D.x - D.w / 2 + 0.07, 0.92, z1 - 0.085); g.add(knob);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.03, 0.055, 20).rotateX(Math.PI / 2), brass); neck.position.set(knob.position.x, 0.92, z1 - 0.055); g.add(neck);
+  g.add(box(0.07, 0.115, 0.006, trim, D.x - D.w / 2 - cw2 - 0.12, 1.22, z1 - 0.003));   // the switch plate
+  g.add(box(0.012, 0.026, 0.014, trim, D.x - D.w / 2 - cw2 - 0.12, 1.228, z1 - 0.01));   // the toggle, up
+
   // window: casing, jambs, sill, two sashes, glass, and the screen over the open half
   const cx = (W.x0 + W.x1) / 2, ww = W.x1 - W.x0, cw = 0.07;
   g.add(box(cw, W.y1 - W.y0 + 2 * cw, 0.02, trim, W.x0 - cw / 2, (W.y0 + W.y1) / 2, z0 + 0.01));
