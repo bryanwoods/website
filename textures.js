@@ -28,7 +28,9 @@ export function screenTexture() {
       const img = new Image();
       img.onload = () => { x.drawImage(img, 26, 8 + i * 70, 32, 32); t.needsUpdate = true; };
       img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="64" height="64">${svg}</svg>`)}`;
-      x.textAlign = 'center'; text(label, 42, 55 + i * 70, '#fff'); x.textAlign = 'left';
+      x.textAlign = 'center'; x.font = '11px Tahoma, Verdana, sans-serif';
+      (x.measureText(label).width > 72 ? label.split(' ') : [label]).forEach((l, k) => text(l, 42, 55 + i * 70 + k * 13, '#fff'));   // a long name wraps, as on the desktop
+      x.textAlign = 'left';
     });
     const X = 446, Y = 8, W = 184, H = 434;
     bevel(X, Y, W, H);

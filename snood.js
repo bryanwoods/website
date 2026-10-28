@@ -55,12 +55,12 @@ function snoodAt(g, k, x, y, s, look) {
   g.restore();
 }
 
-export function snood(open, sfx, icon) {
+export function snood(open, sfx, icon, sheet) {
   const w = open('Snood', 'snood', 120, 6, `<div class="menubar"><span>Game</span><span>Options</span><span>Help</span></div>
     <div class="window-body"><div class="well"><canvas width="${W * 2}" height="${FH * 2}"></canvas></div>
       <div class="side"><fieldset><legend>Score</legend><b class="score">0</b></fieldset><fieldset><legend>Level</legend><b class="lvl">1</b></fieldset>
         <div class="meter"><div></div></div><label>Danger</label>
-        <select class="diff">${Object.keys(LEVELS).map(l => `<option${l === 'Medium' ? ' selected' : ''}>${l}</option>`).join('')}</select><button class="new">New Game</button></div></div>`, icon);
+        <select class="diff">${Object.keys(LEVELS).map(l => `<option${l === 'Medium' ? ' selected' : ''}>${l}</option>`).join('')}</select><button class="new">New Game</button><button class="hi">High Scores</button></div></div>`, icon);
   const cv = w.querySelector('canvas'), g = cv.getContext('2d'), $ = s => w.querySelector(s);
   g.scale(2, 2);
   let grid, diff = 'Medium', level, score, danger, ceil, shown, ball, held, aim = Math.PI / 2, over, msg = '', until = 0, now = 0, last = 0, fx = [];
@@ -143,6 +143,8 @@ export function snood(open, sfx, icon) {
     if (danger >= cap()) { ceil++; danger = 0; sfx('ceiling'); }
     if (grid.some((row, a) => row.some(x => x != null) && Y(a) + R > LINE)) {   // over the line: every snood turns into a Numbskull
       over = true; each((a, b) => { grid[a][b] = SKULL; }); say('Game Over', Infinity); sfx('lose');
+      const final = { score, level, diff };
+      if (score) top().then(b => { const list = b?.[final.diff]; if (list && (list.length < 10 || final.score > list.at(-1).score)) record(final); });
     } else held = pick();
     hud();
   }
@@ -193,7 +195,48 @@ export function snood(open, sfx, icon) {
   cv.onpointermove = point;
   cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); point(e); };
   cv.onpointerup = e => { point(e); fire(); };
+  // the high scores: the ten best at each difficulty, kept in the Google Sheet with the visitors' away messages
+  let best;   // undefined while loading, null when the sheet can't be reached
+  const top = () => fetch(`${sheet}?snood=1`).then(r => r.json()).then(b => (best = b), () => (best ??= null));
+  function board(show, mine) {
+    const h = open('Snood High Scores', 'scores', 180, 70, `<div class="window-body"><select>${Object.keys(LEVELS).map(l => `<option${l === show ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      <div class="sunken-panel"><table class="interactive"><thead><tr><th>#</th><th>Name</th><th>Score</th><th>Level</th></tr></thead><tbody></tbody></table></div>
+      <div class="ok"><button>OK</button></div></div>`, icon);
+    const pick = h.querySelector('select'), rows = h.querySelector('tbody');
+    const fill = () => {
+      const list = best?.[pick.value] ?? [];
+      rows.replaceChildren(...list.map((r, i) => {
+        const tr = document.createElement('tr');
+        for (const v of [i + 1, r.name, Number(r.score).toLocaleString('en-US'), r.level]) tr.insertCell().textContent = v;   // visitors' names go in as text, never as HTML
+        tr.classList.toggle('highlighted', r.name === mine?.name && r.score === mine?.score);
+        return tr;
+      }));
+      if (!list.length) rows.insertRow().insertCell().textContent = best === undefined ? 'Loading...' : best ? 'No scores yet.' : "Can't reach the high scores right now.";
+    };
+    pick.onchange = fill;
+    h.querySelector('.ok button').onclick = () => h.close();
+    fill(); top().then(fill);
+  }
+  function record(final) {   // a score for the list: ask for a screen name, then show where it landed
+    const d = open('Snood', 'hiscore', 200, 140, `<div class="window-body"><p>You made the high scores with ${final.score.toLocaleString('en-US')} points on ${final.diff}!</p>
+      <div class="field-row-stacked"><label>Your screen name</label><input maxlength="16"></div><p class="err"></p>
+      <div class="ok"><button class="go">OK</button> <button class="no">Cancel</button></div></div>`, icon);
+    const sn = d.querySelector('input'), err = d.querySelector('.err'), go = d.querySelector('.go');
+    try { sn.value = localStorage.getItem('aim-screen-name') || ''; } catch {}
+    d.querySelector('.no').onclick = () => d.close();
+    sn.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+    go.onclick = async () => {
+      go.disabled = true;
+      const r = await fetch(sheet, { method: 'POST', body: JSON.stringify({ name: sn.value, ...final }) }).then(x => x.json()).catch(() => null);   // plain text, so no CORS preflight
+      go.disabled = false;
+      if (!r || r.error) return void (err.textContent = r?.error || "Can't reach the high scores right now. Try again later.");
+      try { localStorage.setItem('aim-screen-name', r.name); } catch {}
+      d.close(); board(final.diff, r);
+    };
+    sn.focus();
+  }
   $('.new').onclick = newGame;
+  $('.hi').onclick = () => board(diff);
   $('.diff').onchange = e => { diff = e.target.value; newGame(); };
   newGame();
   requestAnimationFrame(function loop(ms) {   // paused while the window is minimized or you have left the computer
