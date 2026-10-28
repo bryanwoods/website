@@ -299,11 +299,12 @@ export function dollarBill() {
 }
 
 // the engraved plate on a trophy base
-export function trophyPlate() {
-  return canvas(256, 80, (x, w, h) => {
+export function trophyPlate(lines) {   // two lines on a small plate, four on a big one
+  const long = lines.length > 2;
+  return canvas(512, long ? 240 : 160, (x, w, h) => {   // sharp enough to read with the trophy in your hand
     x.fillStyle = '#d9b04a'; x.fillRect(0, 0, w, h);
-    x.fillStyle = '#2a2214'; x.font = '700 14px Arial, sans-serif'; x.textAlign = 'center';
-    x.fillText('HORSEHEADS YOUTH SOCCER', w / 2, 34); x.fillText('1997', w / 2, 58);
+    x.fillStyle = '#2a2214'; x.font = `700 ${long ? 30 : 28}px Arial, sans-serif`; x.textAlign = 'center';
+    lines.forEach((l, i) => x.fillText(l, w / 2, long ? 56 + i * 48 : 68 + i * 48));
   });
 }
 

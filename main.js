@@ -15,6 +15,8 @@ import { winamp } from './winamp.js';
 import { SFX } from './sfx.js';
 import { foam } from './foam.js';
 import { menu } from './menu.js';
+import { paper, cover } from './overlay.js';
+import { RECYCLED } from './recycled.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -186,10 +188,11 @@ let drag = { moved: 0 };   // so the end of a drag isn't taken for a tap
 renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; spot?.press?.(e); });
 renderer.domElement.addEventListener('pointerup', e => spot?.release?.(e));
 renderer.domElement.addEventListener('pointermove', e => {
-  if (e.pointerType !== 'touch' || drag.x == null) return;
+  if (drag.x == null || (e.pointerType !== 'touch' && !e.buttons)) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
-  if (!spot || spot.free) turn.set(THREE.MathUtils.clamp(turn.x - dx / innerWidth * 2.2, -1.45, 1.45), THREE.MathUtils.clamp(turn.y + dy / innerHeight * 1.2, -0.45, 0.45));
+  if (held) return void (held.spin += dx * 0.012);   // turning the trophy in your hand
+  if (e.pointerType === 'touch' && (!spot || spot.free)) turn.set(THREE.MathUtils.clamp(turn.x - dx / innerWidth * 2.2, -1.45, 1.45), THREE.MathUtils.clamp(turn.y + dy / innerHeight * 1.2, -0.45, 0.45));
 });
 
 const btn = document.getElementById('sound');
@@ -217,6 +220,26 @@ const under = Object.assign(document.createElement('div'), { hidden: true });   
 under.style.cssText = 'position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at 50% -10%, rgba(170,240,215,.15), rgba(15,85,70,.5))';
 document.body.append(under);
 let walk = null;   // where you are walking to in the tank, and where you look on the way
+// a trophy picked up off the dresser: it floats up in front of you, upright on the screen with its plate toward you, a drag turns it,
+// and it goes back where it was when you put it down
+let held = null, heldAt = 0;
+function pickUp(t) {
+  held = { t, parent: t.parent, pos: t.getWorldPosition(new THREE.Vector3()), quat: t.getWorldQuaternion(new THREE.Quaternion()), spin: 0, k: 0, down: false };
+  scene.attach(t);
+  say(t.userData.lines.join(' · '), 6000);
+}
+const putDown = () => { held.down = true; };
+function hold(now = heldAt) {
+  const dt = Math.min(0.05, now - heldAt); heldAt = now;
+  if (!held) return;
+  const { t, h = t.userData.h } = held;
+  held.k = THREE.MathUtils.clamp(held.k + (held.down ? -dt : dt) / 0.45, 0, 1);
+  const e = held.k * held.k * (3 - 2 * held.k);
+  const to = camera.localToWorld(new THREE.Vector3(0, -h * 0.5, -(0.16 + h * 1.15)));   // far enough to see all of it
+  const facing = camera.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(UP, held.spin));
+  t.position.lerpVectors(held.pos, to, e); t.quaternion.slerpQuaternions(held.quat, facing, e);
+  if (held.k === 0 && (held.down || !spot)) { held.parent.attach(t); held = null; }
+}
 const squash = (s, b = props.bag) => { b.userData.y ??= b.position.y; b.scale.y = s; b.position.y = b.userData.y * s; };   // from the floor up: its middle is its origin
 const game = foam(scene, camera, props.hoop, sfx, text => say(text, 4000));   // the foam basketballs
 // Thrasher's "Classics" upload of Muska's part: Bryan's link (wUxEhn7mhG0) and the full Shorty's video refuse to play outside youtube.com
@@ -280,6 +303,39 @@ const SPOTS = {
       return [c.clone().add(new THREE.Vector3(fit(0.42, 0.8), 0, 0)), c];
     },
   },
+  lamp: { mesh: props.lamp, act() { lamp.user = !lamp.on; } },   // the desk lamp's switch
+  cans: {   // a Diet Coke: crack it, drink it, crush it
+    mesh: props.cans,
+    act(c) {
+      const s = c.userData.state;
+      if (s === 'full') { c.userData.state = 'open'; sfx('crack'); say('Pssshhht.', 2500); }
+      else if (s === 'open') { c.userData.state = 'empty'; sfx('gulp'); say('Warm, and flat already. Still good.', 3000); }
+      else if (s === 'empty') { props.crush(c); sfx('crunch'); say('Crushed.', 2000); }
+      else say('Already crushed.', 2000);
+    },
+  },
+  mags: { mesh: props.mags, act(m) { cover(m.userData.cover, m.userData.title); } },
+  papers: { mesh: props.papers, act(p) { paper(RECYCLED.find(r => r.name === p.userData.note).text, p.geometry.type !== 'PlaneGeometry'); } },   // smoothed out, if it was balled up
+  window: {   // standing at the window, looking out at the yard
+    mesh: (() => { const m = new THREE.Mesh(new THREE.BoxGeometry(WINDOW.x1 - WINDOW.x0, WINDOW.y1 - WINDOW.y0, 0.06), new THREE.MeshBasicMaterial({ visible: false })); m.position.copy(WINDOW.center).setZ(WINDOW.z + 0.05); scene.add(m); return m; })(),
+    free: true, hint: `The backyard. ${phone ? 'Drag' : 'Move the mouse'} to look around.`,
+    view: () => [new THREE.Vector3(WINDOW.center.x, 1.42, WINDOW.z + 0.55), new THREE.Vector3(WINDOW.center.x - 0.25, 1.25, WINDOW.z - 1.5)],
+  },
+  trophies: {   // close enough to read the plates; a click on one picks it up
+    mesh: props.trophies, hint: `Horseheads Youth Soccer, and one summer at Sodus Bay. ${phone ? 'Tap' : 'Click'} one to pick it up.`,
+    click() {
+      let o = ray.intersectObjects(props.trophies)[0]?.object;
+      while (o && !props.trophies.includes(o)) o = o.parent;
+      if (!o) return false;
+      pickUp(o); return true;
+    },
+    leave() { if (held) { held.k = 0; held.down = true; hold(); } },   // put straight back
+    view() {
+      const b = new THREE.Box3(); props.trophies.forEach(t => b.expandByObject(t));
+      const c = b.getCenter(new THREE.Vector3());
+      return [c.clone().add(new THREE.Vector3(0.32, 0.42, 0.3)), c.clone().setY(c.y - 0.04)];   // from where the plates face, high enough to see over the hoodie on the chair
+    },
+  },
   bag: {   // plopped down on the beanbag under the window, looking back across the room toward the door
     mesh: props.bag, free: true, hint: `You're on the beanbag. ${phone ? 'Drag' : 'Move the mouse'} to look around.`,
     view: () => [new THREE.Vector3(0.45, 0.74, -1.48), new THREE.Vector3(-1.0, 0.86, 0.8)],
@@ -326,21 +382,32 @@ const SPOTS = {
 let spot = null, fly = null;
 const ray = new THREE.Raycaster();
 ray.params.Line.threshold = 0.005;   // a line (the tank's edges, the guitar's strings) is hit only on it; three.js's default reaches a metre around it
-const hit = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return Object.keys(SPOTS).find(k => ray.intersectObjects([SPOTS[k].mesh].flat()).length); };
+let picked = null;   // the very thing the last hit landed on: which can, which paper, which magazine
+const hit = e => {   // the nearest clickable thing under the pointer
+  ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera);
+  let best = null, near = Infinity;
+  for (const [k, s] of Object.entries(SPOTS)) {
+    const h = ray.intersectObjects([s.mesh].flat())[0];
+    if (h && h.distance < near) { near = h.distance; best = k; picked = h.object; }
+  }
+  return best;
+};
 renderer.domElement.addEventListener('pointermove', e => { const k = hit(e); renderer.domElement.style.cursor = (k && (!spot || SPOTS[k] === spot && spot.click)) || (!spot && game.pick(ray.ray)) ? 'pointer' : ''; });
 renderer.domElement.addEventListener('click', e => {   // a spot can take the click for itself, and a thing with a menu asks first
   if (drag.moved > 12) return;
+  if (held) return void putDown();   // holding a trophy, a click puts it down
   const k = hit(e);
   if (spot?.click?.()) return;
   if (!spot && game.pick(ray.ray, true)) return void (location.hash = 'hoop');   // a foam ball: pick it up and go shoot
+  if (!spot && SPOTS[k]?.act) return void SPOTS[k].act([SPOTS[k].mesh].flat().find(o => o === picked || o.getObjectById(picked.id)));   // some things you use where they are
   if (!spot && SPOTS[k]?.menu) return menu(e.clientX, e.clientY, ...SPOTS[k].menu, to => { location.hash = to; });
   location.hash = spot ? '' : k || '';
 });
 const backButton = document.getElementById('back');
 backButton.onclick = back;   // the way out on a phone, which has no Esc key
-addEventListener('keydown', e => { if (e.key === 'Escape' && spot) location.hash = ''; });
+addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (held) putDown(); else if (spot) location.hash = ''; });   // Esc puts a trophy down before it takes you anywhere
 function route() {
-  const next = SPOTS[location.hash.slice(1)] || null;
+  const next = SPOTS[location.hash.slice(1)]?.view ? SPOTS[location.hash.slice(1)] : null;   // the things you use where they are have nowhere to fly to
   if (next === spot) return;
   spot?.leave?.(); spot = next; backButton.hidden = !spot;
   if (spot?.near) { camera.near = spot.near; camera.updateProjectionMatrix(); }   // shrunk, things a few millimetres away must not be cut off
@@ -373,7 +440,7 @@ const lamp = (() => {   // a bulb under the desk lamp's shade, found as the high
   const light = new THREE.SpotLight('#ffb46a', 0, 3.5, 0.95, 0.7, 1.6), bulb = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), new THREE.MeshBasicMaterial({ color: '#ffe2b0' }));
   light.position.copy(top).y -= 0.07; light.target.position.set(-1.25, 0.74, -1.6);   // down onto the desk
   bulb.position.copy(light.position); bulb.visible = false; scene.add(light, light.target, bulb);
-  return { light, bulb, on: false };
+  return { light, bulb, on: false, dark: false, user: null };   // user: switched on or off by hand, until it gets dark
 })();
 const say = (text, ms = 7000) => { status.textContent = text; status.style.opacity = 1; setTimeout(() => { status.style.opacity = 0; }, ms); };
 let shadowsAt = 0, called = 0;
@@ -389,7 +456,8 @@ function dusk(t) {
   bounce.intensity = 1.3 * up; patchGlow.intensity = 1.6 * up;
   scene.backgroundIntensity = 1.35 - 1.27 * night; scene.environmentIntensity = 0.15 - 0.12 * night; renderer.toneMappingExposure = 1.05 - 0.2 * night;
   dusky.material.opacity = 0.9 * smooth(0.35, 0.9, k); dusky.material.color.lerpColors(TINT.white, TINT.night, smooth(0.8, 1, k));
-  if (k > 0.7 !== lamp.on) { lamp.on = k > 0.7; lamp.bulb.visible = lamp.on; sfx('click'); }
+  if (k > 0.7 !== lamp.dark) { lamp.dark = k > 0.7; lamp.user = null; }   // at dusk it comes on, whatever you did before
+  if ((lamp.user ?? lamp.dark) !== lamp.on) { lamp.on = !lamp.on; lamp.bulb.visible = lamp.on; sfx('click'); }
   lamp.light.intensity += ((lamp.on ? 7 : 0) - lamp.light.intensity) * 0.3;
   sound?.dusk(k);
   if (up > 0 && t - shadowsAt > 2) { shadowsAt = t; renderer.shadowMap.needsUpdate = true; }
@@ -429,6 +497,7 @@ renderer.setAnimationLoop(() => {
   camera.lookAt(aim);
   camera.updateMatrixWorld();
   if (spot && !fly) spot.place?.();
+  hold(t);
   game.tick(t);
   room.tick(t);
   props.tick(t);

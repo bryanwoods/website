@@ -54,6 +54,9 @@ export const SFX = {
   ceiling(ac, out) { const t = ac.currentTime; tone(ac, out, 110, t, 0.22, { type: 'square', gain: 0.1, to: 45 }); hiss(ac, out, t, 0.15, { freq: 300, q: 0.6, gain: 0.3 }); },
   lose(ac, out) { const t = ac.currentTime; [392, 330, 262, 196].forEach((f, i) => tone(ac, out, f, t + i * 0.22, 0.2, { type: 'triangle', gain: 0.15 })); },
   win(ac, out) { const t = ac.currentTime; [523, 659, 784, 1047].forEach((f, i) => tone(ac, out, f, t + i * 0.1, 0.12, { type: 'triangle', gain: 0.14 })); },
+  crack(ac, out) { const t = ac.currentTime; hiss(ac, out, t, 0.02, { freq: 3000, q: 1, gain: 0.5 }); hiss(ac, out, t + 0.02, 0.6, { freq: 5200, q: 0.5, gain: 0.22, wobble: 0.3 }); },   // the tab, then the fizz
+  gulp(ac, out) { const t = ac.currentTime; for (let i = 0; i < 3; i++) tone(ac, out, 180, t + i * 0.32, 0.12, { gain: 0.2, to: 110 }); },
+  crunch(ac, out) { const t = ac.currentTime; tone(ac, out, 90, t, 0.1, { gain: 0.2, to: 60 }); for (let i = 0; i < 5; i++) hiss(ac, out, t + i * 0.03 + Math.random() * 0.02, 0.04, { freq: 2000 + Math.random() * 3000, q: 4, gain: 0.3 }); },   // aluminium folding
   chomp(ac, out) { const t = ac.currentTime; tone(ac, out, 140, t, 0.08, { gain: 0.15, to: 90 }); for (let i = 0; i < 3; i++) hiss(ac, out, t + i * 0.07 + Math.random() * 0.02, 0.05, { freq: 1200 + Math.random() * 1500, q: 0.8, gain: 0.3 }); },   // a bite of crust
   plop(ac, out) { const t = ac.currentTime; tone(ac, out, 95, t, 0.18, { gain: 0.22, to: 45 }); hiss(ac, out, t, 0.45, { freq: 500, q: 0.6, gain: 0.3 }); hiss(ac, out, t + 0.05, 0.12, { freq: 2600, q: 3, gain: 0.08 }); },   // into the beanbag: a thump, the beans, a squeak of vinyl
   click(ac, out) { hiss(ac, out, ac.currentTime, 0.02, { freq: 2500, q: 1, gain: 0.6 }); tone(ac, out, 1800, ac.currentTime, 0.015, { gain: 0.12 }); },   // a lamp switch

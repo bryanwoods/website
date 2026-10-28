@@ -151,6 +151,12 @@ const trophyCup = mergeGeometries([
   new THREE.LatheGeometry([[0, 0], [0.3, 0], [0.3, 0.05], [0.12, 0.09], [0.06, 0.2], [0.06, 0.32], [0.14, 0.38], [0.32, 0.55], [0.42, 0.82], [0.45, 1]].map(([r, y]) => new THREE.Vector2(r, y)), 32),
   ...[-1, 1].map(s => new THREE.TorusGeometry(0.17, 0.03, 8, 20, Math.PI).rotateZ(-s * Math.PI / 2).translate(s * 0.4, 0.68, 0)),
 ]);
+const sailboat = mergeGeometries([   // a sloop under sail, a unit high: the hull, the mast, the mainsail, and the jib
+  new THREE.ExtrudeGeometry(new THREE.Shape([[-0.42, 0.16], [0.44, 0.16], [0.36, 0.06], [0.22, 0], [-0.3, 0.01], [-0.4, 0.06]].map(([a, c]) => new THREE.Vector2(a, c))), { depth: 0.14, bevelSize: 0.015, bevelThickness: 0.015, bevelSegments: 2 }).translate(0, 0, -0.07),
+  new THREE.CylinderGeometry(0.014, 0.016, 0.86, 10).translate(0.04, 0.58, 0).toNonIndexed(),
+  new THREE.ExtrudeGeometry(new THREE.Shape([[0.02, 0.22], [0.02, 0.98], [-0.34, 0.22]].map(([a, c]) => new THREE.Vector2(a, c))), { depth: 0.012, bevelEnabled: false }).translate(0, 0, -0.006),
+  new THREE.ExtrudeGeometry(new THREE.Shape([[0.06, 0.24], [0.06, 0.86], [0.42, 0.2]].map(([a, c]) => new THREE.Vector2(a, c))), { depth: 0.012, bevelEnabled: false }).translate(0, 0, -0.006),
+]);
 const flutes = new THREE.CylinderGeometry(0.011, 0.011, 1, 48);   // the column, fluted like the foil risers
 for (let i = 0, p = flutes.attributes.position; i < p.count; i++) {
   const k = 1 + 0.15 * Math.max(0, Math.cos(Math.atan2(p.getZ(i), p.getX(i)) * 12));
@@ -158,18 +164,21 @@ for (let i = 0, p = flutes.attributes.position; i < p.count; i++) {
 }
 flutes.computeVertexNormals();
 
-function trophy(g, x, y, z, h, kind, color = '#2a63c9') {
+function trophy(g, x, y, z, h, kind, color = '#2a63c9', lines = ['HORSEHEADS YOUTH SOCCER', '1997']) {
   const t = new THREE.Group(); t.position.set(x, y, z); t.rotation.y = Math.PI / 4 + (Math.random() - 0.5) * 0.5; g.add(t);   // turned toward the room
-  add(t, R(0.075, 0.026, 0.075, 0.003), M.marble, 0, 0.013, 0);
-  add(t, new THREE.PlaneGeometry(0.045, 0.014), new THREE.MeshStandardMaterial({ map: trophyPlate(), metalness: 0.6, roughness: 0.3, envMapIntensity: 6 }), 0, 0.013, 0.0377);
+  t.userData = { lines, h };   // what its plate says, and how tall it is, for when it's picked up
+  const long = lines.length > 2, bh = long ? 0.036 : 0.026, b = bh - 0.026;   // four lines of engraving need a taller base and a bigger plate
+  add(t, R(0.075, bh, 0.075, 0.003), M.marble, 0, bh / 2, 0);
+  add(t, new THREE.PlaneGeometry(long ? 0.064 : 0.045, long ? 0.03 : 0.014), new THREE.MeshStandardMaterial({ map: trophyPlate(lines), metalness: 0.6, roughness: 0.3, envMapIntensity: 6 }), 0, bh / 2, 0.0377);
   const top = kind === 'cup' ? 0.45 * h : 0.3 * h + 0.02, col = h - 0.038 - top;
   const trim = new THREE.CylinderGeometry(0.016, 0.017, 0.006, 24);
-  add(t, trim, M.gold, 0, 0.029, 0);
-  add(t, flutes, new THREE.MeshStandardMaterial({ color, metalness: 0.7, roughness: 0.22, envMapIntensity: 6 }), 0, 0.032 + col / 2, 0).scale.y = col;
-  add(t, trim, M.gold, 0, 0.035 + col, 0);
-  const topper = add(t, kind === 'cup' ? trophyCup : kicker, M.gold, 0, 0.038 + col, 0);
+  add(t, trim, M.gold, 0, b + 0.029, 0);
+  add(t, flutes, new THREE.MeshStandardMaterial({ color, metalness: 0.7, roughness: 0.22, envMapIntensity: 6 }), 0, b + 0.032 + col / 2, 0).scale.y = col;
+  add(t, trim, M.gold, 0, b + 0.035 + col, 0);
+  const topper = add(t, { cup: trophyCup, boat: sailboat }[kind] ?? kicker, M.gold, 0, b + 0.038 + col, 0);
   topper.scale.setScalar(top);
-  if (kind !== 'cup') topper.rotation.y = 1;   // the player in three-quarter profile, so the kick reads
+  if (kind !== 'cup') topper.rotation.y = kind === 'boat' ? 0.35 : 1;   // the player in three-quarter profile, so the kick reads; the boat nearly side on, so the sails do
+  return t;
 }
 
 // a 90s oak-laminate dresser to match the desk, against the left wall
@@ -422,7 +431,7 @@ const lathe = (pts, n = 40) => new THREE.LatheGeometry(pts.map(([r, y]) => new T
 
 function magazine(g, tex, x, z, y, rotY, w = 0.21, d = 0.28) {
   const side = new THREE.MeshStandardMaterial({ color: '#f4f0e6', roughness: 0.7 }), cover = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
-  add(g, B(w, 0.004, d), [side, side, cover, side, side, side], x, y + 0.002, z, [0, rotY, 0]);
+  return add(g, B(w, 0.004, d), [side, side, cover, side, side, side], x, y + 0.002, z, [0, rotY, 0]);
 }
 
 // a black vinyl beanbag, slumped: the beans settled into a wide bottom, the back pushed up against the wall,
@@ -468,17 +477,25 @@ function crumpled(g, x, y, z, r) {
     v.multiplyScalar(0.72 + 0.36 * (n - Math.floor(n))); p.setXYZ(i, v.x, v.y * 0.85, v.z);
   }
   geo.computeVertexNormals();
-  add(g, geo, page, x, y + r * 0.7, z, [Math.random() * 3, Math.random() * 3, 0]);
+  return add(g, geo, page, x, y + r * 0.7, z, [Math.random() * 3, Math.random() * 3, 0]);
 }
 
 // a Diet Coke can in the 80s and 90s design, the label unwrapped from a photo of a used one (it needs a licence before this is public)
 const dietCoke = new THREE.MeshStandardMaterial({ map: img('assets/diet-coke.jpg'), metalness: 0.35, roughness: 0.35 });
 const canEnd = new THREE.MeshStandardMaterial({ color: '#c9ccd0', metalness: 0.9, roughness: 0.3 });
+function crush(m) {   // stepped on: squashed to under half its length, the sides buckled, lying on its side
+  const p = m.geometry.attributes.position;
+  for (let i = 0; i < p.count; i++) { const k = 1 + 0.18 * Math.sin(p.getY(i) * 60 + Math.atan2(p.getZ(i), p.getX(i)) * 3); p.setXYZ(i, p.getX(i) * k, p.getY(i) * 0.45, p.getZ(i) * k); }
+  m.geometry.computeVertexNormals(); m.geometry.computeBoundingSphere();
+  m.position.y = m.userData.floor + 0.0275; m.rotation.order = 'YXZ'; m.rotation.x = Math.PI / 2;
+  m.userData.state = 'crushed';
+}
 function can(g, x, y, z, { crushed = false, lying = false, rotY = 0 } = {}) {
-  const geo = new THREE.CylinderGeometry(0.033, 0.033, 0.122, 32, 6);
-  if (crushed) { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + 0.18 * Math.sin(p.getY(i) * 60 + Math.atan2(p.getZ(i), p.getX(i)) * 3); p.setXYZ(i, p.getX(i) * k, p.getY(i) * 0.45, p.getZ(i) * k); } geo.computeVertexNormals(); }
-  const m = add(g, geo, [dietCoke, canEnd, canEnd], x, y + (crushed ? 0.0275 : lying ? 0.033 : 0.061), z, [0, rotY, 0]);
-  if (crushed || lying) { m.rotation.order = 'YXZ'; m.rotation.x = Math.PI / 2; }   // on its side, turned rotY on the floor
+  const m = add(g, new THREE.CylinderGeometry(0.033, 0.033, 0.122, 32, 6), [dietCoke, canEnd, canEnd], x, y + (lying ? 0.033 : 0.061), z, [0, rotY, 0]);
+  m.userData = { floor: y, state: lying ? 'empty' : 'full' };
+  if (crushed) crush(m);
+  else if (lying) { m.rotation.order = 'YXZ'; m.rotation.x = Math.PI / 2; }   // on its side, turned rotY on the floor
+  return m;
 }
 
 function fork(g, x, y, z, rotY) {
@@ -507,10 +524,12 @@ function dishes(g, top) {
 
 function mess(g, top) {
   // magazines on the floor, all from 1997: Thrasher and the tabloid-size Rolling Stone, fanned, one lying open
-  [['thrasher-1997-04', 0.05, -0.15, 0.4], ['rollingstone-1997-04-17-beck', 0.18, -0.08, -0.3], ['thrasher-1997-07', -0.12, 0.12, 1.1], ['rollingstone-1997-01-23-manson', 0.45, -0.25, 0.9],
-    ['thrasher-1997-08-puleo', 0.3, 0.25, 2.4], ['rollingstone-1997-09-04-rage-wutang', -0.25, -0.22, -0.7], ['thrasher-1997-09-special-200', -0.02, 0.4, 0.25]].forEach(([f, x, z, r], i) => {
-    const rs = f.startsWith('rolling');
-    magazine(g, img(`assets/magazines/${f}.jpg`), x, z, i * 0.0042, r, rs ? 0.25 : 0.21, rs ? 0.302 : 0.273);
+  const mags = [], papers = [], cans = [];
+  [['thrasher-1997-04', 0.05, -0.15, 0.4, 'Thrasher, April 1997'], ['rollingstone-1997-04-17-beck', 0.18, -0.08, -0.3, 'Rolling Stone, April 17, 1997: Beck'], ['thrasher-1997-07', -0.12, 0.12, 1.1, 'Thrasher, July 1997'],
+    ['rollingstone-1997-01-23-manson', 0.45, -0.25, 0.9, 'Rolling Stone, January 23, 1997: Marilyn Manson'], ['thrasher-1997-08-puleo', 0.3, 0.25, 2.4, 'Thrasher, August 1997: Bobby Puleo'],
+    ['rollingstone-1997-09-04-rage-wutang', -0.25, -0.22, -0.7, 'Rolling Stone, September 4, 1997: Rage Against the Machine and the Wu-Tang Clan'], ['thrasher-1997-09-special-200', -0.02, 0.4, 0.25, 'Thrasher, September 1997: Special Issue 200']].forEach(([f, x, z, r, title], i) => {
+    const rs = f.startsWith('rolling'), cover = `assets/magazines/${f}.jpg`;
+    mags.push(Object.assign(magazine(g, img(cover), x, z, i * 0.0042, r, rs ? 0.25 : 0.21, rs ? 0.302 : 0.273), { userData: { cover, title } }));
   });
   magazine(g, magazineSpread(), 0.52, 0.08, 0, -0.5, 0.42);
   const bag = beanbag(g, 0.45, -1.58);
@@ -523,23 +542,25 @@ function mess(g, top) {
   add(g, ring, new THREE.MeshStandardMaterial({ map: img('assets/cds/its-dark-and-hell-is-hot-disc.jpg'), roughness: 0.35 }), -1.11, 0.0135, 0.22, [0, 0.7, 0]);   // printed side up, on its case
   // the wastebasket, overflowing, and the shots that missed
   add(g, new THREE.CylinderGeometry(0.13, 0.11, 0.28, 32, 1, true), new THREE.MeshStandardMaterial({ color: '#8f9399', roughness: 0.6, side: THREE.DoubleSide }), -1.62, 0.14, -1.18);
-  for (const [x, y, z, r] of [[-1.64, 0.26, -1.2, 0.04], [-1.59, 0.28, -1.15, 0.035], [-1.66, 0.3, -1.13, 0.032], [-1.42, 0, -1.1, 0.035], [-1.3, 0, -1.22, 0.03], [-1.27, 0, -0.98, 0.038]]) crumpled(g, x, y, z, r);
+  [[-1.64, 0.26, -1.2, 0.04], [-1.59, 0.28, -1.15, 0.035], [-1.66, 0.3, -1.13, 0.032], [-1.42, 0, -1.1, 0.035], [-1.3, 0, -1.22, 0.03], [-1.27, 0, -0.98, 0.038]].forEach(([x, y, z, r], i) => {   // each a draft that didn't make it
+    papers.push(Object.assign(crumpled(g, x, y, z, r), { userData: { note: ['battle rhymes.txt', 'band names.txt', 'album ideas.txt', 'freestyle words.txt', 'earth sci lab 3.doc', 'battle rhymes.txt'][i] } }));
+  });
   // homework, on the floor where it fell
-  [[-0.62, -1.28, 0.5], [-0.48, -0.98, -0.3]].forEach(([x, z, r], i) => add(g, new THREE.PlaneGeometry(0.21, 0.28), new THREE.MeshStandardMaterial({ map: homeworkPage(i), roughness: 0.8 }), x, 0.002 + i * 0.001, z, [-Math.PI / 2, 0, r]));
+  [[-0.62, -1.28, 0.5], [-0.48, -0.98, -0.3]].forEach(([x, z, r], i) => papers.push(Object.assign(add(g, new THREE.PlaneGeometry(0.21, 0.28), new THREE.MeshStandardMaterial({ map: homeworkPage(i), roughness: 0.8 }), x, 0.002 + i * 0.001, z, [-Math.PI / 2, 0, r]), { userData: { note: ['of mice and men essay.doc', 'global studies hw ch 7.doc'][i] } })));
   const pizza = pudgies(g, 1.2, 0.35, 0.35);   // at the foot of the bed
   // Diet Coke cans: on the desk, one crushed and three more strewn on the floor and the sill (and one on the CD changer)
-  can(g, -0.75, top, -1.92);
-  can(g, 0.95, 0, 0.75, { crushed: true, rotY: 0.8 });
-  can(g, 0.08, 0, -1.05, { rotY: 2.6 });                  // by the beanbag
-  can(g, 0.62, 0, 0.62, { lying: true, rotY: 1.3 });      // rolled away across the carpet
-  can(g, 0.86, WINDOW.y0, -1.95, { rotY: 0.4 });          // on the window sill, by the cup
+  cans.push(can(g, -0.75, top, -1.92));
+  cans.push(can(g, 0.95, 0, 0.75, { crushed: true, rotY: 0.8 }));
+  cans.push(can(g, 0.08, 0, -1.05, { rotY: 2.6 }));                  // by the beanbag
+  cans.push(can(g, 0.62, 0, 0.62, { lying: true, rotY: 1.3 }));      // rolled away across the carpet
+  cans.push(can(g, 0.86, WINDOW.y0, -1.95, { rotY: 0.4 }));          // on the window sill, by the cup
   // Bryan's faded black Flameboy hoodie thrown over the back of the desk chair, its chest print upside down in the folds. The fabric and its
   // outline are a photo of a used one from an eBay listing, so it needs a licence before this is public
   const hoodie = new THREE.MeshStandardMaterial({ map: img('assets/flameboy.jpg'), alphaMap: new THREE.TextureLoader().load('assets/flameboy-mask.png'), alphaTest: 0.5,
     bumpMap: weave, bumpScale: 1.5, roughness: 1, side: THREE.DoubleSide });
   add(g, drape(0.78, 0.78, 0.46, 4.1), hoodie, -1.0, 0.972, -0.805, [0.18, 0, 0]);
   dishes(g, top);
-  return { demo, bag, pizza };
+  return { demo, bag, pizza, mags, papers, cans };
 }
 
 const loader = new GLTFLoader();
@@ -717,18 +738,21 @@ export async function buildProps(scene) {
     m.material = m.material.clone(); m.material.map = map.clone(); m.material.map.image = c; m.material.map.needsUpdate = true; m.material.color.set('#2d63c4');
   });
   fillShelves(g, shelf);
-  const { demo, bag, pizza } = mess(g, top);
+  const { demo, bag, pizza, mags, papers, cans } = mess(g, top);
   const dTop = dresser.box.max.y, dz = -0.5, dx = dresser.box.max.x - 0.24;
   hifi(g, dx + 0.02, dTop, dz + 0.01, Math.PI / 2);
-  can(g, dx + 0.05, dTop + 0.283, dz - 0.04, { rotY: 2 });   // on top of the CD changer
+  cans.push(can(g, dx + 0.05, dTop + 0.283, dz - 0.04, { rotY: 2 }));   // on top of the CD changer
   // the soccer trophies on one side of the changer, tall ones at the back, kept out from behind the speaker; the newt on the other side
-  [[-0.05, -0.45, 0.28, 'cup', '#2a63c9'], [0.05, -0.45, 0.26, 'figure', '#c4312b'], [0.15, -0.45, 0.22, 'figure', '#2a63c9'], [0.02, -0.36, 0.13, 'figure', '#2d9a4a'], [0.11, -0.36, 0.16, 'cup', '#c4312b'], [0.19, -0.36, 0.14, 'figure', '#2a63c9']]
-    .forEach(([x, z, h, kind, color]) => trophy(g, dx + 0.02 + x, dTop, dz + z, h, kind, color));
+  const SOCCER = 'HORSEHEADS YOUTH SOCCER';
+  const trophies = [[-0.05, -0.45, 0.28, 'cup', '#2a63c9', [SOCCER, '1997']], [0.05, -0.45, 0.26, 'figure', '#c4312b', [SOCCER, '1996']], [0.15, -0.45, 0.22, 'figure', '#2a63c9', [SOCCER, '1995']],
+    [0.2, -0.36, 0.13, 'figure', '#2d9a4a', [SOCCER, '1993']], [0.11, -0.36, 0.16, 'cup', '#c4312b', ['INDOOR SOCCER', '1996']],
+    [0.02, -0.35, 0.2, 'boat', '#1f3a7a', ['SODUS BAY YACHT CLUB', 'JUNIOR SAILING ASSOCIATION', 'BEST 16 YEAR OLD SWIMMER', 'AGAINST 5 YEAR OLDS']]]   // up front: the proudest
+    .map(([x, z, h, kind, color, lines]) => trophy(g, dx + 0.02 + x, dTop, dz + z, h, kind, color, lines));   // a season each, and the summer at Sodus Bay
   const tank = newtTank(g, dx + 0.02, dTop, dz + 0.385);
   const guitar = guitarAndAmp(g);
   await iversons(g);
   const deck = await muskaDeck(g);
   trophy(g, dx - 0.06, shelf.box.max.y, (shelf.box.min.z + shelf.box.max.z) / 2, 0.22, 'figure');
   const mist = humidifier(g, -1.05, 1.82);
-  return { screen, tick: t => { tank.tick(t); mist(t); pizza.tick(t); }, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news, bag, pizza };
+  return { screen, tick: t => { tank.tick(t); mist(t); pizza.tick(t); }, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news, bag, pizza, mags, papers, cans, crush, trophies };
 }
