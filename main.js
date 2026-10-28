@@ -14,6 +14,7 @@ import { desktop } from './desktop.js';
 import { winamp } from './winamp.js';
 import { SFX } from './sfx.js';
 import { foam } from './foam.js';
+import { menu } from './menu.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -33,7 +34,7 @@ const scene = new THREE.Scene();
 // you, on a beanbag near the door, looking across the room to the desk, the window, and the bed
 const camera = new THREE.PerspectiveCamera(52, 1, 0.03, 200);
 camera.position.set(0.35, 0.85, 1.45);   // low, on a beanbag
-const HOME = camera.position.clone(), LOOK = new THREE.Vector3(-0.1, 0.78, -2.0), focus = LOOK.clone();
+const HOME = camera.position.clone(), LOOK = new THREE.Vector3(-0.1, 0.78, -2.0), focus = LOOK.clone(), NEAR = camera.near, REACH = HOME.distanceTo(LOOK);
 
 // the yard, through the window
 new RGBELoader().load('assets/hdri/belfast_farmhouse_2k.hdr', t => { t.mapping = THREE.EquirectangularReflectionMapping; scene.background = t; });
@@ -188,7 +189,7 @@ renderer.domElement.addEventListener('pointermove', e => {
   if (e.pointerType !== 'touch' || drag.x == null) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
-  if (!spot) turn.set(THREE.MathUtils.clamp(turn.x - dx / innerWidth * 2.2, -1.45, 1.45), THREE.MathUtils.clamp(turn.y + dy / innerHeight * 1.2, -0.45, 0.45));
+  if (!spot || spot.free) turn.set(THREE.MathUtils.clamp(turn.x - dx / innerWidth * 2.2, -1.45, 1.45), THREE.MathUtils.clamp(turn.y + dy / innerHeight * 1.2, -0.45, 0.45));
 });
 
 const btn = document.getElementById('sound');
@@ -209,6 +210,13 @@ Object.assign(window, { THREE, scene, camera, sun, renderer, props, beam });
 const sfx = (name, k) => { if (ac?.state === 'running') SFX[name](ac, ac.destination, k); };   // only once SOUND ON has started the audio
 const pc = desktop(sfx), back = () => { location.hash = ''; };
 let dialed = false;
+// shrunk in the tank: a point on its gravel at the eye height of something pebble-sized, and a point just ahead of you
+const inTank = (x, z, up = 0.006) => props.tank.group.localToWorld(new THREE.Vector3(x, props.tank.ground(x) + up, z));
+const ahead = d => camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(d).add(camera.position);
+const under = Object.assign(document.createElement('div'), { hidden: true });   // under the water everything goes green and dim
+under.style.cssText = 'position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at 50% -10%, rgba(170,240,215,.15), rgba(15,85,70,.5))';
+document.body.append(under);
+let walk = null;   // where you are walking to in the tank, and where you look on the way
 const game = foam(scene, camera, props.hoop, sfx, text => say(text, 4000));   // the foam basketballs
 // Thrasher's "Classics" upload of Muska's part: Bryan's link (wUxEhn7mhG0) and the full Shorty's video refuse to play outside youtube.com
 const muska = winamp({ video: '8kRTFNU4ZaE', title: "CHAD MUSKA - FULFILL THE DREAM (SHORTY'S 1998)", onClose: back });
@@ -230,13 +238,38 @@ const SPOTS = {
     },
   },
   newt: {
-    mesh: props.tank.glass, hint: `Firenewty. ${phone ? 'Tap' : 'Click'} the water to drop in a bloodworm.`,
+    mesh: props.tank.glass, menu: ["*~ FIRENEWTY'Z CRIB ~*", [['FEED FIRENEWTY', 'newt'], ['GET IN', 'tank']]], hint: `Firenewty. ${phone ? 'Tap' : 'Click'} the water to drop in a bloodworm.`,
     enter() { props.tank.greet(camera.position); },
     view() {   // down the tank from its water end, under the lid, and clear of the guitar's headstock beside it
       const c = props.tank.glass.getWorldPosition(new THREE.Vector3());
       return [c.clone().add(new THREE.Vector3(1, 0.18, 0.1).normalize().multiplyScalar(0.13 + fit(0.18, 0.2))), c.clone().setY(c.y - 0.02)];
     },
     click() { if (!ray.intersectObject(props.tank.glass).length) return false; props.tank.feed(ray.ray); return true; },
+  },
+  tank: {   // GET IN: shrunk to the size of a pebble, standing on the gravel in Firenewty's tank. Only the tank's menu brings you here
+    mesh: [], near: 0.001, free: true,   // free: the head turns with the pointer here, as in the room
+    hint: `You're the size of a pebble. ${phone ? 'Tap' : 'Click'} the gravel to walk there, or the sky to drop in a bloodworm.`,
+    view: () => [inTank(-0.1, 0.02), inTank(0.06, -0.01, -0.004)],   // on the dry end, looking down the slope to the water
+    enter() { props.tank.greet(ahead(0.08)); },   // he comes over to see what you are, and stops where you can see all of him
+    leave() { under.hidden = true; walk = null; },
+    place() {
+      under.hidden = props.tank.group.worldToLocal(camera.position.clone()).y > props.tank.water;
+      if (!walk) return;
+      camera.position.lerp(walk.to, 0.03); focus.lerp(walk.look, 0.06);
+      if (camera.position.distanceTo(walk.to) < 0.0005) walk = null;
+    },
+    click() {   // along the ray in millimetre steps: where it meets the gravel, walk there; if it never does, a bloodworm drops in ahead
+      const { group, ground, XB, ZB } = props.tank, r = ray.ray.clone().applyMatrix4(group.matrixWorld.clone().invert()), p = r.origin.clone();
+      for (let s = 0; s < 300 && Math.abs(p.x) < XB && Math.abs(p.z) < ZB && p.y < 0.2; s++, p.addScaledVector(r.direction, 0.001)) {
+        if (p.y > ground(p.x)) continue;
+        const x = THREE.MathUtils.clamp(p.x, 0.008 - XB, XB - 0.008), z = THREE.MathUtils.clamp(p.z, 0.008 - ZB, ZB - 0.008), to = inTank(x, z);
+        walk = { to, look: to.clone().add(to.clone().sub(camera.position).setY(0).normalize().multiplyScalar(0.05)).setY(to.y - 0.004) };
+        return true;
+      }
+      const at = ahead(0.04);
+      props.tank.feed(new THREE.Ray(at.setY(at.y + 1), new THREE.Vector3(0, -1, 0)));
+      return true;
+    },
   },
   muska: {
     mesh: props.deck, enter: muska.show, leave: muska.hide,
@@ -267,7 +300,13 @@ const ray = new THREE.Raycaster();
 ray.params.Line.threshold = 0.005;   // a line (the tank's edges, the guitar's strings) is hit only on it; three.js's default reaches a metre around it
 const hit = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return Object.keys(SPOTS).find(k => ray.intersectObjects([SPOTS[k].mesh].flat()).length); };
 renderer.domElement.addEventListener('pointermove', e => { const k = hit(e); renderer.domElement.style.cursor = k && (!spot || SPOTS[k] === spot && spot.click) ? 'pointer' : ''; });
-renderer.domElement.addEventListener('click', e => { if (drag.moved > 12) return; const k = hit(e); if (!spot?.click?.()) location.hash = spot ? '' : k || ''; });   // a spot can take the click for itself
+renderer.domElement.addEventListener('click', e => {   // a spot can take the click for itself, and a thing with a menu asks first
+  if (drag.moved > 12) return;
+  const k = hit(e);
+  if (spot?.click?.()) return;
+  if (!spot && SPOTS[k]?.menu) return menu(e.clientX, e.clientY, ...SPOTS[k].menu, to => { location.hash = to; });
+  location.hash = spot ? '' : k || '';
+});
 const backButton = document.getElementById('back');
 backButton.onclick = back;   // the way out on a phone, which has no Esc key
 addEventListener('keydown', e => { if (e.key === 'Escape' && spot) location.hash = ''; });
@@ -275,6 +314,8 @@ function route() {
   const next = SPOTS[location.hash.slice(1)] || null;
   if (next === spot) return;
   spot?.leave?.(); spot = next; backButton.hidden = !spot;
+  if (spot?.near) { camera.near = spot.near; camera.updateProjectionMatrix(); }   // shrunk, things a few millimetres away must not be cut off
+  if (spot?.free) turn.set(0, 0);
   const [to, toLook] = spot ? spot.view() : [HOME, LOOK];
   fly = { from: camera.position.clone(), fromLook: focus.clone(), to, toLook, t0: clock.getElapsedTime() };
 }
@@ -343,12 +384,16 @@ renderer.setAnimationLoop(() => {
     focus.lerpVectors(fly.fromLook, fly.toLook, e);
     if (s === 1) {
       fly = null; spot?.enter();
+      camera.near = spot?.near ?? NEAR; camera.updateProjectionMatrix();
       if (spot?.hint) { status.textContent = spot.hint; status.style.opacity = 1; setTimeout(() => { status.style.opacity = 0; }, 5000); }
     }
   }
-  drift += ((spot ? 0 : 1) - drift) * 0.05;
-  look.lerp(spot ? still : mouse, 0.035);
-  aim.copy(focus).add(new THREE.Vector3((look.x * 1.1 + Math.sin(t * 0.13) * 0.05) * drift, (-look.y * 0.55 + Math.sin(t * 0.11) * 0.03) * drift, 0));
+  drift += ((spot && !spot.free ? 0 : 1) - drift) * 0.05;
+  look.lerp(spot && !spot.free ? still : mouse, 0.035);
+  const reach = drift * camera.position.distanceTo(focus) / REACH;   // the head turns through the same angle at any size: in the room, or shrunk in the tank
+  side.subVectors(focus, camera.position).cross(UP).normalize();
+  aim.copy(focus).addScaledVector(side, (look.x * 1.1 + Math.sin(t * 0.13) * 0.05) * reach);
+  aim.y += (-look.y * 0.55 + Math.sin(t * 0.11) * 0.03) * reach;
   turned.lerp(turn, 0.2);
   aim.sub(camera.position).applyAxisAngle(UP, -turned.x * drift);   // the drag: a turn of the head, then a tilt
   aim.applyAxisAngle(side.crossVectors(aim, UP).normalize(), turned.y * drift).add(camera.position);

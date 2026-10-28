@@ -122,5 +122,5 @@ export function newt(tank, { L, W, bank, water }) {
     for (const b of bubbles) { b.position.y += 0.025 * dt; b.position.x += Math.sin(t * 9 + b.id) * 0.00015; }
     while (bubbles.length && bubbles[0].position.y > water) tank.remove(bubbles.shift());
   }
-  return { tick, feed, greet };
+  return { tick, feed, greet, ground, XB, ZB, water };
 }

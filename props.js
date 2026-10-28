@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WINDOW } from './room.js';
 import { newt } from './newt.js';
 import { guitarAndAmp } from './gear.js';
@@ -351,7 +351,11 @@ function newtTank(g, x, y, z) {
   for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) > 0 ? bank(p.getX(i) / (L - 0.008) + 0.5) : 0);
   bed.computeVertexNormals();
   add(t, bed, new THREE.MeshStandardMaterial({ color: '#4b2470', roughness: 0.6 }), 0, 0, 0);
-  const n = 900, pebbles = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.0045, 0), new THREE.MeshStandardMaterial({ roughness: 0.35 }), n), o = new THREE.Object3D(), col = new THREE.Color();
+  const pebble = new THREE.IcosahedronGeometry(0.0045, 1); pebble.deleteAttribute('normal'); pebble.deleteAttribute('uv');
+  const round = mergeVertices(pebble), q = round.attributes.position;   // round and a little lumpy, so that shrunk inside they are stones, not crystals
+  for (let i = 0; i < q.count; i++) { const k = 1 + (Math.random() - 0.5) * 0.22; q.setXYZ(i, q.getX(i) * k, q.getY(i) * k, q.getZ(i) * k); }
+  round.computeVertexNormals();
+  const n = 900, pebbles = new THREE.InstancedMesh(round, new THREE.MeshStandardMaterial({ roughness: 0.35 }), n), o = new THREE.Object3D(), col = new THREE.Color();
   for (let i = 0; i < n; i++) {
     const u = Math.random();
     o.position.set((u - 0.5) * (L - 0.014), bank(u) + Math.random() * 0.003, (Math.random() - 0.5) * (W - 0.014));
@@ -364,7 +368,7 @@ function newtTank(g, x, y, z) {
   add(t, B(L + 0.012, 0.012, W + 0.012), [green, green, new THREE.MeshStandardMaterial({ map: ventLid(), roughness: 0.45 }), green, green, green], 0, H + 0.006, 0);
   add(t, B(0.08, 0.006, W * 0.62), green, -L * 0.28, H + 0.015, 0);   // the feeding hatch
   add(t, new THREE.PlaneGeometry(0.075, 0.02), new THREE.MeshStandardMaterial({ map: maskingTape('FIRENEWTY'), alphaTest: 0.5, roughness: 0.85 }), -0.07, 0.112, W / 2 + 0.0008).castShadow = false;   // his name, on masking tape
-  return { ...newt(t, { L, W, bank, water }), glass: tub };
+  return { ...newt(t, { L, W, bank, water }), glass: tub, group: t };
 }
 
 // the mess: magazines, a beanbag, CDs, homework, paper, a pizza box, cans, a hoodie, and the dishes nobody took down
