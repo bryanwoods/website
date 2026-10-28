@@ -1,6 +1,6 @@
 // Small foam basketballs for the mini hoop over the desk. At the hoop you hold one, and a flick up throws it: harder the longer the
 // flick, and off to the side it leans. A ball flies under gravity and a little air drag, bounces off the backboard and the furniture,
-// rattles the rim, slows through the net, and rolls away across the carpet. Three wait around the room before anyone plays.
+// rattles the rim, slows through the net, and rolls away across the carpet. There are three; click one in the room to pick it up.
 import * as THREE from 'three';
 
 const R = 0.045, G = 9.8, RIM = 0.105, TUBE = 0.0075;   // a 9 cm ball; the rim's radius and its tube
@@ -40,11 +40,11 @@ export function foam(scene, camera, { rim, board, net }, sfx, say) {
     return b;
   }
   [[-0.3, R, -1.25], [0.05, R, -0.85], [-0.55, 0.74 + R, -1.55]].forEach(ball);
-  function drop(b) { scene.remove(b.m, b.blob); balls.splice(balls.indexOf(b), 1); }
-  function grab() {   // a new ball in your hand; with a dozen around, the oldest goes
+  function take(b) { hand = b; b.v.set(0, 0, 0); b.shot = b.done = b.rim = b.board = false; }   // it flies up into your hand
+  function grab() {   // the nearest ball that has come to rest; if they are all still rolling, a moment later
     if (!active || hand) return;
-    if (balls.length >= 12) drop(balls[0]);
-    hand = ball([0, 0, 0]);
+    const near = balls.filter(b => !b.v.lengthSq()).sort((a, b) => a.p.distanceTo(camera.position) - b.p.distanceTo(camera.position))[0];
+    if (near) take(near); else setTimeout(grab, 500);
   }
 
   function bounce(b, normal, e, sound) {   // reflect the part of the velocity going into the surface, and rub off a little of the rest
@@ -101,7 +101,12 @@ export function foam(scene, camera, { rim, board, net }, sfx, say) {
 
   return {
     enter() { active = true; grab(); },
-    leave() { active = false; aim = null; if (hand) { drop(hand); hand = null; } },
+    leave() { active = false; aim = null; if (hand) { hand.v.set(0, -0.1, 0); hand = null; } },   // you let go of it where you stand
+    pick(ray, now) {   // a ball under the pointer, a little bigger than it is so it's easy to hit; now: pick it up
+      const b = balls.filter(b => b !== hand && ray.distanceSqToPoint(b.p) < (R * 1.6) ** 2).sort((a, b) => a.p.distanceTo(ray.origin) - b.p.distanceTo(ray.origin))[0];
+      if (b && now) take(b);
+      return !!b;
+    },
     press(e) { if (hand) aim = { x: e.clientX, y: e.clientY }; },
     release(e) {   // the flick: up for power, sideways for aim, always at about 52 degrees
       if (!hand || !aim) return;
@@ -115,7 +120,7 @@ export function foam(scene, camera, { rim, board, net }, sfx, say) {
     },
     tick(t) {
       const dt = Math.min(0.05, t - last); last = t;
-      if (hand) hand.p.copy(camera.localToWorld(q.set(0.06, -0.15, -0.38)));
+      if (hand) hand.p.lerp(camera.localToWorld(q.set(0.06, -0.15, -0.38)), 1 - Math.exp(-dt * 10));
       for (const b of balls) {
         if (b !== hand && b.v.lengthSq() > 1e-6) {
           const before = b.p.clone();

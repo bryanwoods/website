@@ -299,11 +299,12 @@ let spot = null, fly = null;
 const ray = new THREE.Raycaster();
 ray.params.Line.threshold = 0.005;   // a line (the tank's edges, the guitar's strings) is hit only on it; three.js's default reaches a metre around it
 const hit = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera); return Object.keys(SPOTS).find(k => ray.intersectObjects([SPOTS[k].mesh].flat()).length); };
-renderer.domElement.addEventListener('pointermove', e => { const k = hit(e); renderer.domElement.style.cursor = k && (!spot || SPOTS[k] === spot && spot.click) ? 'pointer' : ''; });
+renderer.domElement.addEventListener('pointermove', e => { const k = hit(e); renderer.domElement.style.cursor = (k && (!spot || SPOTS[k] === spot && spot.click)) || (!spot && game.pick(ray.ray)) ? 'pointer' : ''; });
 renderer.domElement.addEventListener('click', e => {   // a spot can take the click for itself, and a thing with a menu asks first
   if (drag.moved > 12) return;
   const k = hit(e);
   if (spot?.click?.()) return;
+  if (!spot && game.pick(ray.ray, true)) return void (location.hash = 'hoop');   // a foam ball: pick it up and go shoot
   if (!spot && SPOTS[k]?.menu) return menu(e.clientX, e.clientY, ...SPOTS[k].menu, to => { location.hash = to; });
   location.hash = spot ? '' : k || '';
 });
