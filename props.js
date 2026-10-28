@@ -9,7 +9,7 @@ import { guitarAndAmp } from './gear.js';
 import { iversons } from './sneakers.js';
 import { muskaDeck } from './skateboard.js';
 import { laundry } from './laundry.js';
-import { screenTexture, conformityPoster, backboardTexture, magazineSpread, homeworkPage, grease, cigarLabel, plaidTexture, spineColors, bookSpines, cdSpine, cdShine, pcBezel, netTexture, vfd, ventLid, trophyPlate, dollarBill, maskingTape } from './textures.js';
+import { screenTexture, framedNews, backboardTexture, magazineSpread, homeworkPage, grease, cigarLabel, plaidTexture, spineColors, bookSpines, cdSpine, cdShine, pcBezel, netTexture, vfd, ventLid, trophyPlate, dollarBill, maskingTape } from './textures.js';
 
 const M = {
   beige: new THREE.MeshStandardMaterial({ color: '#d8cfb8', roughness: 0.55 }),
@@ -277,6 +277,17 @@ function poster(g, tex, w, h, x, y, z, rotY, tilt = 0) {
   for (const [u, v] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
     const t = new THREE.Mesh(tack, tm); t.position.set(u * (w / 2 - 0.02), v * (h / 2 - 0.02), 0.004); p.add(t);
   }
+}
+
+// the Star-Gazette story, matted and framed in black under glass, hung a little crooked over the dresser
+function framedStory(g, x, y, z) {
+  const W = 0.262, H = 0.333, M = 0.025, D = 0.02, f = new THREE.Group();   // the mat, and the moulding's width and depth
+  f.position.set(x, y, z); f.rotation.set(0, Math.PI / 2, 0.012); g.add(f);
+  add(f, new THREE.PlaneGeometry(W, H), new THREE.MeshStandardMaterial({ map: framedNews(), roughness: 0.85 }), 0, 0, 0.004).castShadow = false;
+  const black = new THREE.MeshStandardMaterial({ color: '#151515', roughness: 0.35 });
+  for (const [w, h, px, py] of [[W + 2 * M, M, 0, (H + M) / 2], [W + 2 * M, M, 0, -(H + M) / 2], [M, H, -(W + M) / 2, 0], [M, H, (W + M) / 2, 0]]) add(f, R(w, h, D, 0.003), black, px, py, D / 2);
+  add(f, new THREE.PlaneGeometry(W, H), new THREE.MeshPhysicalMaterial({ transparent: true, opacity: 0.08, roughness: 0.05, clearcoat: 1, depthWrite: false }), 0, 0, D * 0.8).castShadow = false;   // the glass
+  return f;
 }
 
 // a twin captain's bed along the right wall, its head under the window, with drawers underneath
@@ -653,7 +664,7 @@ export async function buildProps(scene) {
   cup(g, 'clear', 0.22, 0, 0.82, { fill: 0.3 });
   cup(g, 'red', 0.62, WINDOW.y0, -1.94, { fill: 0.2 });   // on the window sill
   poster(g, img('assets/posters/tupac.jpg'), 0.6, 0.8, -1.05, 1.66, -1.995, 0, 0.025);   // David LaChapelle's 1996 photo; needs a licence before this is public
-  poster(g, conformityPoster(), 0.46, 0.69, -1.795, 1.6, -0.5, Math.PI / 2, -0.035);
+  const news = framedStory(g, -1.799, 1.5, -0.5);
   const basket = hoop(g, -0.42, 1.62);
   await laundry(g);
   poster(g, img('assets/posters/nirvana.jpg'), 0.58, 0.91, 1.795, 1.6, -1.0, -Math.PI / 2, 0.02);   // over the bed; a licensed band photo, so it needs a licence before this is public
@@ -688,5 +699,5 @@ export async function buildProps(scene) {
   await iversons(g);
   const deck = await muskaDeck(g);
   trophy(g, dx - 0.06, shelf.box.max.y, (shelf.box.min.z + shelf.box.max.z) / 2, 0.22, 'figure');
-  return { screen, tick: tank.tick, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo };
+  return { screen, tick: tank.tick, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news };
 }

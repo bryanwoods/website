@@ -220,6 +220,7 @@ let walk = null;   // where you are walking to in the tank, and where you look o
 const game = foam(scene, camera, props.hoop, sfx, text => say(text, 4000));   // the foam basketballs
 // Thrasher's "Classics" upload of Muska's part: Bryan's link (wUxEhn7mhG0) and the full Shorty's video refuse to play outside youtube.com
 const muska = winamp({ video: '8kRTFNU4ZaE', title: "CHAD MUSKA - FULFILL THE DREAM (SHORTY'S 1998)", onClose: back });
+const noTeeth = winamp({ audio: 'assets/conformity/no-teeth.mp3', title: 'CONFORMITY - NO TEETH', side: 'right', onClose: back });   // Bryan's high school band
 const band = winamp({ video: 'RUUP4kkl6Z0', title: 'FACE DOWN IN MEXICO CITY WITH AN ICE PICK IN THE BACK - SHANGHAI THE SAILOR', side: 'right', onClose: back });   // Bryan's college band
 const fit = (h, w) => { const t = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max(h / t, w / (t * camera.aspect)); };   // how far back to stand to see h by w metres
 const SPOTS = {
@@ -269,6 +270,13 @@ const SPOTS = {
       const at = ahead(0.04);
       props.tank.feed(new THREE.Ray(at.setY(at.y + 1), new THREE.Vector3(0, -1, 0)));
       return true;
+    },
+  },
+  news: {   // the framed Star-Gazette story on the wall over the dresser, close enough to read
+    mesh: props.news, enter: noTeeth.show, leave: noTeeth.hide, hint: 'The Star-Gazette, Wednesday, August 20, 2003. On Winamp: Conformity, "No Teeth."',
+    view() {   // the frame in the left half of the view, Winamp in the right
+      const c = props.news.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0, -0.2));
+      return [c.clone().add(new THREE.Vector3(fit(0.42, 0.8), 0, 0)), c];
     },
   },
   muska: {
@@ -384,7 +392,7 @@ renderer.setAnimationLoop(() => {
     camera.position.lerpVectors(fly.from, fly.to, e).y += fly.from.distanceTo(fly.to) > 1 ? 0.3 * Math.sin(Math.PI * e) : 0;   // up over the chair, not through it
     focus.lerpVectors(fly.fromLook, fly.toLook, e);
     if (s === 1) {
-      fly = null; spot?.enter();
+      fly = null; spot?.enter?.();
       camera.near = spot?.near ?? NEAR; camera.updateProjectionMatrix();
       if (spot?.hint) { status.textContent = spot.hint; status.style.opacity = 1; setTimeout(() => { status.style.opacity = 0; }, 5000); }
     }

@@ -58,24 +58,30 @@ export function screenTexture() {
   return t;
 }
 
-// a photocopied show flyer for Bryan's high school band
-export function conformityPoster() {
-  return canvas(512, 768, (x, w, h) => {
-    x.fillStyle = '#0d0d0d'; x.fillRect(0, 0, w, h);
-    const d = x.getImageData(0, 0, w, h);
-    for (let i = 0; i < d.data.length; i += 4) { const n = Math.random() < 0.04 ? 60 : Math.random() * 14; d.data[i] += n; d.data[i + 1] += n; d.data[i + 2] += n; }   // xerox toner noise
-    x.putImageData(d, 0, 0);
-    x.fillStyle = '#d42a1e'; x.fillRect(0, h * 0.6, w, 96);
-    x.save(); x.translate(w / 2, h * 0.36); x.rotate(-0.06);
-    x.fillStyle = '#f2efe6'; x.textAlign = 'center'; x.font = '900 86px Impact, Haettenschweiler, "Arial Narrow", sans-serif';
-    x.fillText('CONFORMITY', 0, 0);
-    x.strokeStyle = '#0d0d0d'; x.lineWidth = 7; x.beginPath(); x.moveTo(-230, -26); x.lineTo(230, -38); x.stroke();   // a strike through the word, by hand
-    x.restore();
-    x.fillStyle = '#0d0d0d'; x.font = '900 40px Impact, sans-serif'; x.textAlign = 'center';
-    x.fillText('2003 BATTLE OF THE BANDS', w / 2, h * 0.6 + 62);
-    x.fillStyle = '#f2efe6'; x.font = '700 20px "Courier New", monospace';
-    x.fillText('LIVE  ·  LOUD  ·  ALL AGES', w / 2, h * 0.9);
+// the Star-Gazette of Wednesday, August 20, 2003, page C1, framed the way it ran: the section's date and name cut from the top of the page,
+// and below it the whole story, "Bands rock Elmira Heights", both photos by Rebecca Towns and the caption, laid on a cream mat. Both
+// pieces are crops of the page on Newspapers.com in assets/conformity/; the page belongs to the paper, so it needs a licence before this is public
+export function framedNews() {
+  const K = 0.6, W = 1180, H = 1500, c = Object.assign(document.createElement('canvas'), { width: W, height: H }), t = new THREE.CanvasTexture(c);   // 45 px a centimetre
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const load = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
+  Promise.all(['masthead', 'article'].map(n => load(`assets/conformity/${n}.jpg`))).then(([head, story]) => {
+    const x = c.getContext('2d');
+    x.fillStyle = '#efe9da'; x.fillRect(0, 0, W, H);
+    for (let k = 0; k < 4000; k++) { x.fillStyle = `rgba(90,70,40,${Math.random() * 0.06})`; x.fillRect(Math.random() * W, Math.random() * H, 2, 2); }   // the mat board's grain
+    for (const [img, top] of [[head, 180], [story, 383]]) {
+      const w = img.width * K, h = img.height * K, left = (W - w) / 2;
+      x.save(); x.shadowColor = 'rgba(40,30,20,.35)'; x.shadowBlur = 8; x.shadowOffsetX = 2; x.shadowOffsetY = 3; x.fillStyle = '#fff'; x.fillRect(left, top, w, h); x.restore();
+      x.drawImage(img, left, top, w, h);
+      if (img === head) {   // between the date and the name: the metro editor's phone and e-mail, and an archivist's pen marks
+        const d = x.getImageData(left + 520 * K, top + 222 * K, 48, 16).data, mean = k => d.reduce((s, v, i) => (i % 4 === k ? s + v : s), 0) / (d.length / 4);
+        x.fillStyle = `rgb(${mean(0)},${mean(1)},${mean(2)})`; x.fillRect(left + 190 * K, top, 465 * K, h);
+      }
+      x.save(); x.globalCompositeOperation = 'multiply'; x.fillStyle = '#f4ecd8'; x.fillRect(left, top, w, h); x.restore();   // newsprint, a little yellow
+    }
+    t.needsUpdate = true;
   });
+  return t;
 }
 
 // the backboard of a mini hoop: clear acrylic printed with a black border, a white pinstripe, an orange target square

@@ -1,6 +1,6 @@
-// Winamp 2 in its classic skin, playing a YouTube video in its video window, on one side of the view.
-// The buttons, the volume, and the seek bar drive the YouTube player. The spectrum is drawn, not measured: a YouTube frame keeps its
-// sound to itself. In its own shadow root, so nothing here styles the rest of the page.
+// Winamp 2 in its classic skin, on one side of the view, playing a YouTube video in its video window or an MP3 with no video window.
+// The buttons, the volume, and the seek bar drive the player. An MP3's spectrum is measured; a YouTube video's is drawn, because its
+// frame keeps its sound to itself. In its own shadow root, so nothing here styles the rest of the page.
 let api;   // YouTube's player API, loaded once for every Winamp
 const youtube = () => api ||= new Promise(done => {
   window.onYouTubeIframeAPIReady = done;
@@ -59,7 +59,7 @@ const CSS = `
   .foot { height: 12px; }
 `;
 
-export function winamp({ video, title, side = 'left', onClose }) {
+export function winamp({ video, audio, title, side = 'left', onClose }) {
   const host = document.createElement('div'); document.body.append(host);
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `<style>${CSS}</style><div class="stack" hidden><div class="zoom">
@@ -78,12 +78,23 @@ export function winamp({ video, title, side = 'left', onClose }) {
     <div class="win vid"><div class="bar"><i></i><b>WINAMP VIDEO</b><i></i><button title="Close">x</button></div><div class="screen"><div class="slot"></div></div><div class="foot"></div></div>
   </div></div>`;
   const $ = s => root.querySelector(s), stack = $('.stack'), bars = [...root.querySelectorAll('.spec i')], seek = $('.seek'), vol = $('.vol');
-  stack.style[side] = '5vw';
+  stack.style[side] = '5vw'; $('.vid').hidden = !!audio;
   const setTitle = d => { const t = `1. ${title}${d ? ` (${mmss(d)})` : ''}  ***  `; $('.marquee span').textContent = t + t; };
   setTitle();
-  let player, ready, scale = 1, dragging = false, frame = 0;
+  let player, ready, scale = 1, dragging = false, frame = 0, spectrum;
 
   function load() {   // the YouTube player inside the video window, scaled back down so it plays at full size on the page
+    if (audio) {   // or an audio element, behind the same calls as the YouTube player
+      const a = new Audio(audio), ac = new AudioContext();
+      spectrum = new AnalyserNode(ac, { fftSize: 64, smoothingTimeConstant: 0.6 });
+      ac.createMediaElementSource(a).connect(spectrum).connect(ac.destination);
+      player = { playVideo: () => { ac.resume(); a.play(); }, pauseVideo: () => a.pause(), seekTo: t => { a.currentTime = t; }, setVolume: v => { a.volume = v / 100; },
+        getCurrentTime: () => a.currentTime, getDuration: () => (isFinite(a.duration) ? a.duration : 0), getPlayerState: () => (!a.paused ? 1 : a.currentTime ? 2 : 0) };
+      a.ondurationchange = () => { if (isFinite(a.duration)) setTitle(a.duration); };   // a server that can't send part of a file leaves it Infinity until the whole MP3 is in
+      player.setVolume(+vol.value); player.playVideo();
+      ready = Promise.resolve();
+      return;
+    }
     ready = new Promise(done => youtube().then(() => {
       player = new window.YT.Player($('.slot'), {
         videoId: video, width: 267 * scale, height: 206 * scale,
@@ -103,11 +114,13 @@ export function winamp({ video, title, side = 'left', onClose }) {
   function draw() {   // the clock, the seek bar, the play state, and a spectrum that jumps while it plays
     frame = requestAnimationFrame(draw);
     if (!player?.getCurrentTime) return;
-    const t = player.getCurrentTime(), d = player.getDuration() || 1, playing = player.getPlayerState() === 1;
+    const t = player.getCurrentTime(), d = player.getDuration(), playing = player.getPlayerState() === 1;
     $('.time').innerHTML = clock(t);
-    if (!dragging) seek.value = t / d * 1000;
+    if (!dragging) seek.value = d ? t / d * 1000 : 0;   // no length yet: the bar waits at the start
     $('.state').innerHTML = playing ? ICON.play : player.getPlayerState() === 2 ? ICON.pause : ICON.stop;
-    bars.forEach((b, i) => { const h = playing ? Math.max(1, Math.min(16, (parseFloat(b.style.height) || 1) * 0.7 + Math.random() * (17 - i * 0.5) * 0.5)) : 1; b.style.height = `${h}px`; });
+    const level = spectrum && new Uint8Array(spectrum.frequencyBinCount);
+    level && spectrum.getByteFrequencyData(level);
+    bars.forEach((b, i) => { const h = !playing ? 1 : level ? Math.max(1, level[i + 1] / 16) : Math.max(1, Math.min(16, (parseFloat(b.style.height) || 1) * 0.7 + Math.random() * (17 - i * 0.5) * 0.5)); b.style.height = `${h}px`; });
   }
 
   return {
