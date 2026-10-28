@@ -9,7 +9,8 @@ import { guitarAndAmp } from './gear.js';
 import { iversons } from './sneakers.js';
 import { muskaDeck } from './skateboard.js';
 import { laundry } from './laundry.js';
-import { screenTexture, framedNews, backboardTexture, magazineSpread, homeworkPage, grease, cigarLabel, plaidTexture, spineColors, bookSpines, cdSpine, cdShine, pcBezel, netTexture, vfd, ventLid, trophyPlate, dollarBill, maskingTape } from './textures.js';
+import { pudgies } from './pizza.js';
+import { screenTexture, framedNews, backboardTexture, magazineSpread, homeworkPage, cigarLabel, plaidTexture, spineColors, bookSpines, cdSpine, cdShine, pcBezel, netTexture, vfd, ventLid, trophyPlate, dollarBill, maskingTape } from './textures.js';
 
 const M = {
   beige: new THREE.MeshStandardMaterial({ color: '#d8cfb8', roughness: 0.55 }),
@@ -525,10 +526,7 @@ function mess(g, top) {
   for (const [x, y, z, r] of [[-1.64, 0.26, -1.2, 0.04], [-1.59, 0.28, -1.15, 0.035], [-1.66, 0.3, -1.13, 0.032], [-1.42, 0, -1.1, 0.035], [-1.3, 0, -1.22, 0.03], [-1.27, 0, -0.98, 0.038]]) crumpled(g, x, y, z, r);
   // homework, on the floor where it fell
   [[-0.62, -1.28, 0.5], [-0.48, -0.98, -0.3]].forEach(([x, z, r], i) => add(g, new THREE.PlaneGeometry(0.21, 0.28), new THREE.MeshStandardMaterial({ map: homeworkPage(i), roughness: 0.8 }), x, 0.002 + i * 0.001, z, [-Math.PI / 2, 0, r]));
-  // a Pudgie's box at the foot of the bed, the Southern Tier chain, in the 1972 design (a photo, so it needs a licence before this is public)
-  const orange = new THREE.MeshStandardMaterial({ color: '#e8743a', roughness: 0.9 });
-  add(g, B(0.4, 0.045, 0.4), [orange, orange, new THREE.MeshStandardMaterial({ map: img('assets/pudgies.jpg'), roughness: 0.85 }), M.cardboard, orange, orange], 1.2, 0.0225, 0.35, [0, 0.35, 0]);
-  add(g, new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshStandardMaterial({ map: grease(), transparent: true, depthWrite: false, roughness: 0.5 }), 1.2, 0.0456, 0.35, [-Math.PI / 2, 0, 0.35]).castShadow = false;
+  const pizza = pudgies(g, 1.2, 0.35, 0.35);   // at the foot of the bed
   // Diet Coke cans: on the desk, one crushed and three more strewn on the floor and the sill (and one on the CD changer)
   can(g, -0.75, top, -1.92);
   can(g, 0.95, 0, 0.75, { crushed: true, rotY: 0.8 });
@@ -541,7 +539,7 @@ function mess(g, top) {
     bumpMap: weave, bumpScale: 1.5, roughness: 1, side: THREE.DoubleSide });
   add(g, drape(0.78, 0.78, 0.46, 4.1), hoodie, -1.0, 0.972, -0.805, [0.18, 0, 0]);
   dishes(g, top);
-  return { demo, bag };
+  return { demo, bag, pizza };
 }
 
 const loader = new GLTFLoader();
@@ -719,7 +717,7 @@ export async function buildProps(scene) {
     m.material = m.material.clone(); m.material.map = map.clone(); m.material.map.image = c; m.material.map.needsUpdate = true; m.material.color.set('#2d63c4');
   });
   fillShelves(g, shelf);
-  const { demo, bag } = mess(g, top);
+  const { demo, bag, pizza } = mess(g, top);
   const dTop = dresser.box.max.y, dz = -0.5, dx = dresser.box.max.x - 0.24;
   hifi(g, dx + 0.02, dTop, dz + 0.01, Math.PI / 2);
   can(g, dx + 0.05, dTop + 0.283, dz - 0.04, { rotY: 2 });   // on top of the CD changer
@@ -732,5 +730,5 @@ export async function buildProps(scene) {
   const deck = await muskaDeck(g);
   trophy(g, dx - 0.06, shelf.box.max.y, (shelf.box.min.z + shelf.box.max.z) / 2, 0.22, 'figure');
   const mist = humidifier(g, -1.05, 1.82);
-  return { screen, tick: t => { tank.tick(t); mist(t); }, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news, bag };
+  return { screen, tick: t => { tank.tick(t); mist(t); pizza.tick(t); }, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news, bag, pizza };
 }

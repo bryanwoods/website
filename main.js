@@ -287,6 +287,18 @@ const SPOTS = {
     leave() { squash(1); },
     place() { squash(props.bag.scale.y + (0.92 - props.bag.scale.y) * 0.2); },   // the beans settle under you
   },
+  pizza: {   // the Pudgie's box at the foot of the bed, open, with half a pizza left in it
+    mesh: props.pizza.group, hint: `Half a Pudgie's left. ${phone ? 'Tap' : 'Click'} a square to eat it.`,
+    enter() { props.pizza.open(true); },
+    leave() { props.pizza.open(false); },
+    view() { const b = props.pizza.group; return [b.localToWorld(new THREE.Vector3(0, 0.45, 0.36)), b.localToWorld(new THREE.Vector3(0, 0.02, -0.03))]; },
+    click() {
+      const left = props.pizza.eat(ray.intersectObjects(props.pizza.squares)[0]?.object);
+      if (left == null) return false;
+      sfx('chomp'); say(left ? `${left} square${left > 1 ? 's' : ''} left.` : "That was the last square. There's grease on the box forever.", 3000);
+      return true;
+    },
+  },
   muska: {
     mesh: props.deck, enter: muska.show, leave: muska.hide,
     view() {   // square on to the deck against the wall, with the deck in the right half of the view and Winamp in the left
