@@ -355,7 +355,8 @@ export function buildDorm(scene) {
   for (const [row, n] of [[1, 7], [0, 6], [-1, 7]]) for (let i = 0; i < n; i++) {   // front row first; each one's middle is its origin, so it can turn end over end
     const c = new THREE.Group(), p = new THREE.Mesh(stick, [paper, paper, new THREE.MeshStandardMaterial({ color: '#6a4426', roughness: 1 })]), f = new THREE.Mesh(tip, [cork, cork, cork]);
     p.position.y = -0.0105; f.position.y = 0.0315; c.add(p, f);
-    c.position.set((i - (n - 1) / 2) * 0.0077, -0.0015, row * 0.0066);   // 2 mm under the lid's top pack.add(c); if (row === 1) smokes.push(c);
+    c.position.set((i - (n - 1) / 2) * 0.0077, -0.0015, row * 0.0066);   // 2 mm under the lid's top
+    pack.add(c); if (row === 1) smokes.push(c);
   }
   pack.userData = { lid: flip, lucky: smokes[4] };   // the front row seen from the front, third from the right
   pack.position.set(1.22, 0.765 + PD / 2, -2.16); pack.rotation.set(-Math.PI / 2, 0, 0.6, 'YXZ');

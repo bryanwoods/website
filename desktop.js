@@ -8,7 +8,7 @@ import { doom } from './doom.js';
 import { ie } from './ie.js';
 
 const CDN = 'https://cdn.jsdelivr.net/npm/98.css@0.1.21/dist';
-const SHEET = 'https://script.google.com/macros/s/AKfycbylJz7wB3gsmglRWmgsseErFp6sFF_jLC71Q6zkl9L63NyAcJ9879PNMiz7nYDYbe_9Dw/exec';   // a Google Sheet's web app, tools/visitors.gs: visitors' away messages and Snood high scores
+export const SHEET = 'https://script.google.com/macros/s/AKfycbylJz7wB3gsmglRWmgsseErFp6sFF_jLC71Q6zkl9L63NyAcJ9879PNMiz7nYDYbe_9Dw/exec';   // a Google Sheet's web app, tools/visitors.gs: visitors' away messages and the Snood and Jimmy high scores
 const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const fill = html => (html || '').replaceAll('%n', ME);
 const dur = m => [[Math.floor(m / 60), 'hour'], [m % 60, 'minute']].filter(([v]) => v).map(([v, u]) => `${v} ${u}${v > 1 ? 's' : ''}`).join(', ');

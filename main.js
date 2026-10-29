@@ -17,6 +17,7 @@ import { menu } from './menu.js';
 import { paper, cover } from './overlay.js';
 import { RECYCLED } from './recycled.js';
 import { buildOutside, SEAT, AIR } from './outside.js';
+import { jimmy } from './jimmy.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -246,6 +247,7 @@ const game = foam(scene, camera, props.hoop, sfx, text => say(text, 4000));   //
 const muska = winamp({ video: '8kRTFNU4ZaE', title: "CHAD MUSKA - FULFILL THE DREAM (SHORTY'S 1998)", onClose: back });
 const noTeeth = winamp({ audio: 'assets/conformity/no-teeth.mp3', title: 'CONFORMITY - NO TEETH', side: 'right', onClose: back });   // Bryan's high school band
 const band = winamp({ video: 'RUUP4kkl6Z0', title: 'FACE DOWN IN MEXICO CITY WITH AN ICE PICK IN THE BACK - SHANGHAI THE SAILOR', side: 'right', onClose: back });   // Bryan's college band
+const offroad = jimmy({ audio: () => ac, exit: back });
 const fit = (h, w) => { const t = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max(h / t, w / (t * camera.aspect)); };   // how far back to stand to see h by w metres
 const SPOTS = {
   computer: {
@@ -318,7 +320,7 @@ const SPOTS = {
   papers: { mesh: props.papers, act(p) { paper(RECYCLED.find(r => r.name === p.userData.note).text, p.geometry.type !== 'PlaneGeometry'); } },   // smoothed out, if it was balled up
   window: {   // standing at the window, looking out at the yard
     mesh: (() => { const m = new THREE.Mesh(new THREE.BoxGeometry(WINDOW.x1 - WINDOW.x0, WINDOW.y1 - WINDOW.y0, 0.06), new THREE.MeshBasicMaterial({ visible: false })); m.position.copy(WINDOW.center).setZ(WINDOW.z + 0.05); scene.add(m); return m; })(),
-    free: true, hint: `The backyard. ${phone ? 'Drag' : 'Move the mouse'} to look around.`, menu: ['*~ DA WINDOW ~*', [['LOOK OUT', 'window'], ['CLIMB OUT', 'roof']]],
+    free: true, hint: `The backyard. ${phone ? 'Drag' : 'Move the mouse'} to look around.`, menu: ['*~ DA WINDOW ~*', [['LOOK OUT', 'window'], ['CLIMB OUT', 'roof'], ['OFF ROAD', 'offroad']]],
     view: () => [new THREE.Vector3(WINDOW.center.x, 1.42, WINDOW.z + 0.55), new THREE.Vector3(WINDOW.center.x - 0.25, 1.25, WINDOW.z - 1.5)],
   },
   roof: {   // CLIMB OUT: through the open bottom half of the window and sat on the porch roof. Only the window's menu brings you here
@@ -355,6 +357,9 @@ const SPOTS = {
       }
     },
     leave() { trip = null; camera.up.set(0, 1, 0); camera.position.copy(SEAT[0]); focus.copy(SEAT[1]); dusky.visible = true; outside.air(false); },   // back on the roof in a blink, then the usual way in
+  },
+  offroad: {   // OFF ROAD: a look out at the field behind the house, and then the field as a cartoon, in Dave's dad's Jimmy
+    mesh: [], view: () => SPOTS.window.view(), enter: offroad.open, leave: offroad.close,
   },
   trophies: {   // close enough to read the plates; a click on one picks it up
     mesh: props.trophies, hint: `Horseheads Youth Soccer, and one summer at Sodus Bay. ${phone ? 'Tap' : 'Click'} one to pick it up.`,
@@ -465,8 +470,9 @@ const dusky = (() => {   // the sky outside the window after sunset, laid over t
   [[0, '#1b2550'], [0.45, '#4b4a86'], [0.7, '#c4688a'], [0.85, '#ff9a55'], [1, '#ffb867']].forEach(([s, col]) => g.addColorStop(s, col));
   x.fillStyle = g; x.fillRect(0, 0, 4, 256);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
-  m.position.set(WINDOW.center.x, WINDOW.y0 + 1.3, WINDOW.z - 0.6); scene.add(m);
+  const f = 3.5, eye = SPOTS.window.view()[0];   // grown about the eye at the window, out past the edge of the porch roof, so the roof stays in front of it
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(4 * f, 3 * f), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+  m.position.set(WINDOW.center.x, WINDOW.y0 + 1.3, WINDOW.z - 0.6).sub(eye).multiplyScalar(f).add(eye); scene.add(m);
   return m;
 })();
 const lamp = (() => {   // a bulb under the desk lamp's shade, found as the highest point of the lamp, shining down onto the desk
@@ -510,6 +516,7 @@ const clock = new THREE.Clock(), still = new THREE.Vector2();
 let drift = 1;   // the head turn and the idle sway; both stop while you look at something close
 route();
 renderer.setAnimationLoop(() => {
+  if (offroad.active && !fly) return;   // the cartoon covers the room
   const t = clock.getElapsedTime();
   if (fly) {
     const s = Math.min(1, (t - fly.t0) / (fly.secs ?? 1.4)), e = s * s * (3 - 2 * s);

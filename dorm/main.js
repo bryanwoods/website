@@ -104,7 +104,7 @@ async function save() {   // a sheet cell holds 50,000 characters: a busy board 
 const canvas = renderer.domElement;
 canvas.addEventListener('pointerdown', e => {
   if (move) return;
-  if (where === 'inside') { if (cast(e, deskArea)) go('desk'); return; }
+  if (where === 'inside') { if (cast(e, deskArea)) go('desk'); else if (cast(e, [pane])) home(e); return; }
   if (where === 'desk') { if (!held && cast(e, smokes)) takeUp(); else if (!held && !cast(e, deskArea)) go('inside'); return; }
   const hit = cast(e, [board, ...tools]);
   if (!hit) return;
@@ -112,7 +112,7 @@ canvas.addEventListener('pointerdown', e => {
   last = at(hit.uv); drawn = true; stroke(last, last); canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', e => {
-  if (where !== 'hall' && !move) canvas.style.cursor = !held && cast(e, where === 'inside' ? deskArea : smokes) ? 'pointer' : '';
+  if (where !== 'hall' && !move) canvas.style.cursor = !held && cast(e, where === 'inside' ? [desk, pane] : smokes) ? 'pointer' : '';
   if (move || where !== 'hall') return;
   const hit = cast(e, [board, ...tools]);
   canvas.style.cursor = !hit ? '' : hit.object === board ? 'crosshair' : 'pointer';
@@ -125,6 +125,13 @@ const X = new THREE.Vector3(1, 0, 0), hidden = new THREE.MeshBasicMaterial({ vis
 const grab = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.1), hidden), desk = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.75, 1.15), hidden);
 pack.add(grab); desk.position.set(1.43, 0.95, -1.87); scene.add(desk);   // the pack a little bigger than itself; the desk and all that is on it
 const smokes = [grab], deskArea = [desk];
+// the window you came in by is the way home: back into the white, and out of it in the bedroom in Horseheads
+const pane = new THREE.Mesh(new THREE.PlaneGeometry(WINDOW.x1 - WINDOW.x0, WINDOW.y1 - WINDOW.y0), hidden);
+pane.position.set((WINDOW.x0 + WINDOW.x1) / 2, (WINDOW.y0 + WINDOW.y1) / 2, WINDOW.z + 0.05); scene.add(pane);
+const home = e => menu(e.clientX, e.clientY, 'HOME TO HORSEHEADS?', [['YES', true], ['NO', false]], yes => {
+  if (!yes) return;
+  document.getElementById('blink').style.opacity = 1; setTimeout(() => { location.href = '../'; }, 1300);
+});
 let held = null;
 const phase = p => { held.phase = p; held.t0 = clock.getElapsedTime(); };
 function takeUp() {
