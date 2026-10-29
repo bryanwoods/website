@@ -342,7 +342,7 @@ const SPOTS = {
   float: {   // up off the roof and away west to SUNY Fredonia, in Google's 3D map, and in at the window of room 328. Only the roof brings you here
     mesh: [], near: 1, far: 20000, secs: 4,
     view: () => AIR,
-    go() { dusky.visible = false; outside.air(true); },
+    go() { outside.air(true); },
     enter() { trip = { at: clock.getElapsedTime() }; },
     place() {
       if (trip.done) return;
@@ -356,7 +356,7 @@ const SPOTS = {
         setTimeout(() => { history.replaceState(null, '', location.pathname); location.href = '../dorm/'; }, 450);
       }
     },
-    leave() { trip = null; camera.up.set(0, 1, 0); camera.position.copy(SEAT[0]); focus.copy(SEAT[1]); dusky.visible = true; outside.air(false); },   // back on the roof in a blink, then the usual way in
+    leave() { trip = null; camera.up.set(0, 1, 0); camera.position.copy(SEAT[0]); focus.copy(SEAT[1]); outside.air(false); },   // back on the roof in a blink, then the usual way in
   },
   offroad: {   // OFF ROAD: a look out at the field behind the house, and then the field as a cartoon, in Dave's dad's Jimmy
     mesh: [], view: () => SPOTS.window.view(), enter: offroad.open, leave: offroad.close,
@@ -497,6 +497,7 @@ function dusk(t) {
   hemi.color.lerpColors(TINT.hemiDay, TINT.night, night); hemi.intensity = 0.7 - 0.58 * night;
   bounce.intensity = 1.3 * up; patchGlow.intensity = 1.6 * up;
   scene.backgroundIntensity = 1.35 - 1.27 * night; scene.environmentIntensity = 0.15 - 0.12 * night; renderer.toneMappingExposure = 1.05 - 0.2 * night;
+  dusky.visible = spot !== SPOTS.roof && spot !== SPOTS.float;   // it hangs out past the porch roof, so it is only for looking out from the room
   dusky.material.opacity = 0.9 * smooth(0.35, 0.9, k); dusky.material.color.lerpColors(TINT.white, TINT.night, smooth(0.8, 1, k));
   if (k > 0.7 !== lamp.dark) { lamp.dark = k > 0.7; lamp.user = null; }   // at dusk it comes on, whatever you did before
   if ((lamp.user ?? lamp.dark) !== lamp.on) { lamp.on = !lamp.on; lamp.bulb.visible = lamp.on; sfx('click'); }
