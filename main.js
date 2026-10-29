@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -17,6 +16,7 @@ import { foam } from './foam.js';
 import { menu } from './menu.js';
 import { paper, cover } from './overlay.js';
 import { RECYCLED } from './recycled.js';
+import { buildOutside, SEAT, AIR } from './outside.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -36,12 +36,9 @@ const scene = new THREE.Scene();
 // you, on a beanbag near the door, looking across the room to the desk, the window, and the bed
 const camera = new THREE.PerspectiveCamera(52, 1, 0.03, 200);
 camera.position.set(0.35, 0.85, 1.45);   // low, on a beanbag
-const HOME = camera.position.clone(), LOOK = new THREE.Vector3(-0.1, 0.78, -2.0), focus = LOOK.clone(), NEAR = camera.near, REACH = HOME.distanceTo(LOOK);
+const HOME = camera.position.clone(), LOOK = new THREE.Vector3(-0.1, 0.78, -2.0), focus = LOOK.clone(), NEAR = camera.near, FAR = camera.far, REACH = HOME.distanceTo(LOOK);
 
-// the yard, through the window
-new RGBELoader().load('assets/hdri/belfast_farmhouse_2k.hdr', t => { t.mapping = THREE.EquirectangularReflectionMapping; scene.background = t; });
-scene.backgroundIntensity = 1.35;
-scene.backgroundRotation.set(0, 0.6, 0);
+scene.backgroundIntensity = 1.35;   // the yard's brightness (outside.js), which the evening turns down
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.15;
@@ -70,7 +67,7 @@ const patchGlow = new THREE.PointLight('#ffb070', 1.6, 4, 1.6);   // the sun pat
 patchGlow.position.set(-0.1, 0.25, -0.4);
 scene.add(patchGlow);
 
-const room = buildRoom(scene);
+const room = buildRoom(scene), outside = buildOutside(scene, camera, renderer);
 status.textContent = 'Setting up the room…';
 const props = await buildProps(scene);
 renderer.shadowMap.needsUpdate = true;
@@ -220,6 +217,9 @@ const under = Object.assign(document.createElement('div'), { hidden: true });   
 under.style.cssText = 'position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at 50% -10%, rgba(170,240,215,.15), rgba(15,85,70,.5))';
 document.body.append(under);
 let walk = null;   // where you are walking to in the tank, and where you look on the way
+// out on the roof: a look left, a look right, and a look up at the sky (seconds, turn left in radians, tilt up), then up you go
+const LOOKS = [[0, 0, 0], [0.5, 0, 0], [1.9, 0.75, 0.05], [3.5, -0.75, 0.05], [5, 0, 1]];
+let roofAt = 0, trip = null;
 // a trophy picked up off the dresser: it floats up in front of you, upright on the screen with its plate toward you, a drag turns it,
 // and it goes back where it was when you put it down
 let held = null, heldAt = 0;
@@ -318,8 +318,43 @@ const SPOTS = {
   papers: { mesh: props.papers, act(p) { paper(RECYCLED.find(r => r.name === p.userData.note).text, p.geometry.type !== 'PlaneGeometry'); } },   // smoothed out, if it was balled up
   window: {   // standing at the window, looking out at the yard
     mesh: (() => { const m = new THREE.Mesh(new THREE.BoxGeometry(WINDOW.x1 - WINDOW.x0, WINDOW.y1 - WINDOW.y0, 0.06), new THREE.MeshBasicMaterial({ visible: false })); m.position.copy(WINDOW.center).setZ(WINDOW.z + 0.05); scene.add(m); return m; })(),
-    free: true, hint: `The backyard. ${phone ? 'Drag' : 'Move the mouse'} to look around.`,
+    free: true, hint: `The backyard. ${phone ? 'Drag' : 'Move the mouse'} to look around.`, menu: ['*~ DA WINDOW ~*', [['LOOK OUT', 'window'], ['CLIMB OUT', 'roof']]],
     view: () => [new THREE.Vector3(WINDOW.center.x, 1.42, WINDOW.z + 0.55), new THREE.Vector3(WINDOW.center.x - 0.25, 1.25, WINDOW.z - 1.5)],
+  },
+  roof: {   // CLIMB OUT: through the open bottom half of the window and sat on the porch roof. Only the window's menu brings you here
+    mesh: [], near: 0.1, far: 4000,
+    get free() { return !outside.air; },   // with the map, the roof is only the way up
+    get hint() { return outside.air ? 'Out on the porch roof.' : `Out on the porch roof. ${phone ? 'Drag' : 'Move the mouse'} to look around.`; },
+    via: () => [new THREE.Vector3(WINDOW.center.x, 1.08, WINDOW.z + 0.35), new THREE.Vector3(WINDOW.center.x, 0.9, WINDOW.z - 2)],   // to the window first, low enough to go under the sash
+    view: () => SEAT,
+    go() { outside.out(room.screen); },
+    enter() { roofAt = clock.getElapsedTime(); },
+    place() {
+      if (!outside.air) return;
+      const s = clock.getElapsedTime() - roofAt, i = LOOKS.findIndex(k => k[0] > s);
+      if (i < 0) return void (location.hash = 'float');
+      const [t0, y0, p0] = LOOKS[i - 1], [t1, y1, p1] = LOOKS[i], e = smooth(t0, t1, s), base = new THREE.Spherical().setFromVector3(SEAT[1].clone().sub(SEAT[0]));
+      focus.setFromSphericalCoords(base.radius, base.phi - p0 - (p1 - p0) * e, base.theta + y0 + (y1 - y0) * e).add(SEAT[0]);
+    },
+  },
+  float: {   // up off the roof and away west to SUNY Fredonia, in Google's 3D map, and in at the window of room 328. Only the roof brings you here
+    mesh: [], near: 1, far: 20000, secs: 4,
+    view: () => AIR,
+    go() { dusky.visible = false; outside.air(true); },
+    enter() { trip = { at: clock.getElapsedTime() }; },
+    place() {
+      if (trip.done) return;
+      const f = outside.flight(clock.getElapsedTime() - trip.at);
+      if (!f) return void (trip.at = clock.getElapsedTime());   // the trip starts when the map has loaded
+      camera.position.copy(f.pos); focus.copy(f.look); camera.up.copy(f.up);
+      camera.near = f.near; camera.far = f.far; camera.updateProjectionMatrix();
+      if (f.arrived && !trip.said) { trip.said = true; say('Chautauqua Hall, SUNY Fredonia. Fall 2003.', 4000); }
+      if (f.into) {   // white, then the dorm; back from there comes home to the bedroom, not to the start of the trip
+        trip.done = true; outside.white();
+        setTimeout(() => { history.replaceState(null, '', location.pathname); location.href = '../dorm/'; }, 450);
+      }
+    },
+    leave() { trip = null; camera.up.set(0, 1, 0); camera.position.copy(SEAT[0]); focus.copy(SEAT[1]); dusky.visible = true; outside.air(false); },   // back on the roof in a blink, then the usual way in
   },
   trophies: {   // close enough to read the plates; a click on one picks it up
     mesh: props.trophies, hint: `Horseheads Youth Soccer, and one summer at Sodus Bay. ${phone ? 'Tap' : 'Click'} one to pick it up.`,
@@ -409,11 +444,12 @@ addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (held) put
 function route() {
   const next = SPOTS[location.hash.slice(1)]?.view ? SPOTS[location.hash.slice(1)] : null;   // the things you use where they are have nowhere to fly to
   if (next === spot) return;
-  spot?.leave?.(); spot = next; backButton.hidden = !spot;
-  if (spot?.near) { camera.near = spot.near; camera.updateProjectionMatrix(); }   // shrunk, things a few millimetres away must not be cut off
+  spot?.leave?.(); spot = next; backButton.hidden = !spot; spot?.go?.();
+  if (spot?.near) camera.near = spot.near;   // shrunk, things a few millimetres away must not be cut off
+  camera.far = spot?.far ?? FAR; camera.updateProjectionMatrix();
   if (spot?.free) turn.set(0, 0);
-  const [to, toLook] = spot ? spot.view() : [HOME, LOOK];
-  fly = { from: camera.position.clone(), fromLook: focus.clone(), to, toLook, t0: clock.getElapsedTime() };
+  const [to, toLook] = spot ? spot.view() : [HOME, LOOK], [mid, midLook] = spot?.via?.() ?? [];   // via: a stop on the way, such as the window
+  fly = { from: camera.position.clone(), fromLook: focus.clone(), to: mid ?? to, toLook: midLook ?? toLook, t0: clock.getElapsedTime(), next: mid && [to, toLook], secs: spot?.secs };
 }
 addEventListener('hashchange', route);
 addEventListener('resize', () => { if (spot && !fly) { const [to, toLook] = spot.view(); camera.position.copy(to); focus.copy(toLook); } });
@@ -476,10 +512,11 @@ route();
 renderer.setAnimationLoop(() => {
   const t = clock.getElapsedTime();
   if (fly) {
-    const s = Math.min(1, (t - fly.t0) / 1.4), e = s * s * (3 - 2 * s);
-    camera.position.lerpVectors(fly.from, fly.to, e).y += fly.from.distanceTo(fly.to) > 1 ? 0.3 * Math.sin(Math.PI * e) : 0;   // up over the chair, not through it
+    const s = Math.min(1, (t - fly.t0) / (fly.secs ?? 1.4)), e = s * s * (3 - 2 * s);
+    camera.position.lerpVectors(fly.from, fly.to, e).y += fly.from.distanceTo(fly.to) > 1 && !fly.low ? 0.3 * Math.sin(Math.PI * e) : 0;   // up over the chair, not through it
     focus.lerpVectors(fly.fromLook, fly.toLook, e);
-    if (s === 1) {
+    if (s === 1 && fly.next) fly = { from: fly.to, fromLook: fly.toLook, to: fly.next[0], toLook: fly.next[1], t0: t, low: true };
+    else if (s === 1) {
       fly = null; spot?.enter?.();
       camera.near = spot?.near ?? NEAR; camera.updateProjectionMatrix();
       if (spot?.hint) { status.textContent = spot.hint; status.style.opacity = 1; setTimeout(() => { status.style.opacity = 0; }, 5000); }
@@ -501,6 +538,7 @@ renderer.setAnimationLoop(() => {
   game.tick(t);
   room.tick(t);
   props.tick(t);
+  outside.tick(t);
   dusk(t);
   dust.material.uniforms.uTime.value = t;
   beam.uniforms.uTime.value = grade.uniforms.uTime.value = t;

@@ -126,10 +126,11 @@ export function buildRoom(scene) {
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(40, 24);
     return t;
   })();
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(ww - 0.07, 0.5), new THREE.MeshBasicMaterial({ map: screenTex, transparent: true, opacity: 0.55, depthWrite: false }));
-  screen.position.set(cx, W.y0 + 0.25, z0 - 0.105);
+  const screen = new THREE.Group(), mesh = new THREE.Mesh(new THREE.PlaneGeometry(ww - 0.07, 0.5), new THREE.MeshBasicMaterial({ map: screenTex, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+  mesh.position.y = 0.25;
+  screen.add(mesh, box(ww - 0.07, 0.02, 0.01, new THREE.MeshStandardMaterial({ color: '#8a8a86', metalness: 0.6, roughness: 0.4 }), 0, 0.5, 0));
+  screen.position.set(cx, W.y0, z0 - 0.105);   // from its bottom edge, so it can be stood somewhere else
   g.add(screen);
-  g.add(box(ww - 0.07, 0.02, 0.01, new THREE.MeshStandardMaterial({ color: '#8a8a86', metalness: 0.6, roughness: 0.4 }), cx, W.y0 + 0.5, z0 - 0.105));
 
   // sheer curtains that breathe in the breeze from the open window
   const curtains = [];
@@ -160,6 +161,6 @@ export function buildRoom(scene) {
   g.add(dome);
 
   scene.add(g);
-  return { tick: t => { curtainTime.value = t; } };
+  return { tick: t => { curtainTime.value = t; }, screen };
 }
 const curtainTime = { value: 0 };

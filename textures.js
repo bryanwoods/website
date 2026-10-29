@@ -337,3 +337,38 @@ export function stuccoNormal() {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
   return t;
 }
+
+// three-tab asphalt shingles, one metre square: eight courses, a dark keyway between tabs, the shadow under each course's edge
+export function shingles() {
+  const t = canvas(512, 512, (x, w, h) => {
+    const row = h / 8, tab = w / 3;
+    for (let r = 0; r < 8; r++) for (let k = -1; k < 4; k++) {
+      const l = 30 + rnd(-5, 5);
+      x.fillStyle = `rgb(${l + 2},${l + 2},${l + 3})`; x.fillRect(k * tab + (r % 2) * tab / 2, r * row, tab, row);
+    }
+    for (let i = 0; i < 26000; i++) { const l = rnd(10, 80); x.fillStyle = `rgba(${l + 2},${l + 2},${l + 4},0.5)`; x.fillRect(rnd(0, w), rnd(0, h), 2, 2); }   // the granules
+    for (let r = 0; r < 8; r++) {
+      const y = (r + 1) * row, g = x.createLinearGradient(0, y - 10, 0, y);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.75)');
+      x.fillStyle = g; x.fillRect(0, y - 10, w, 10);
+      x.fillStyle = 'rgba(0,0,0,0.8)';
+      for (let k = 0; k < 4; k++) x.fillRect(k * tab + ((r + 1) % 2) * tab / 2 - 2, y - row * 0.62, 4, row * 0.62);
+    }
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// white vinyl lap siding, one metre square: ten laps, each lit on its face and shadowed under its lower edge
+export function siding() {
+  const t = canvas(256, 256, (x, w, h) => {
+    const lap = h / 10;
+    for (let r = 0; r < 10; r++) {
+      const g = x.createLinearGradient(0, r * lap, 0, (r + 1) * lap);
+      g.addColorStop(0, '#d9d9d4'); g.addColorStop(0.25, '#f1f1ec'); g.addColorStop(0.92, '#e6e6e1'); g.addColorStop(1, '#8d8d88');
+      x.fillStyle = g; x.fillRect(0, r * lap, w, lap);
+    }
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
