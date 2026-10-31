@@ -18,6 +18,7 @@ import { paper, cover } from './overlay.js';
 import { RECYCLED } from './recycled.js';
 import { buildOutside, SEAT, AIR } from './outside.js';
 import { jimmy } from './jimmy.js';
+import { tadzio } from './tadzio.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -39,7 +40,6 @@ const camera = new THREE.PerspectiveCamera(52, 1, 0.03, 200);
 camera.position.set(0.35, 0.85, 1.45);   // low, on a beanbag
 const HOME = camera.position.clone(), LOOK = new THREE.Vector3(-0.1, 0.78, -2.0), focus = LOOK.clone(), NEAR = camera.near, FAR = camera.far, REACH = HOME.distanceTo(LOOK);
 
-scene.backgroundIntensity = 1.35;   // the yard's brightness (outside.js), which the evening turns down
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.15;
@@ -221,6 +221,7 @@ let walk = null;   // where you are walking to in the tank, and where you look o
 // out on the roof: a look left, a look right, and a look up at the sky (seconds, turn left in radians, tilt up), then up you go
 const LOOKS = [[0, 0, 0], [0.5, 0, 0], [1.9, 0.75, 0.05], [3.5, -0.75, 0.05], [5, 0, 1]];
 let roofAt = 0, trip = null;
+let late = 0, bedtime = null;   // late: seconds the evening has been run on, by going to bed early
 // a trophy picked up off the dresser: it floats up in front of you, upright on the screen with its plate toward you, a drag turns it,
 // and it goes back where it was when you put it down
 let held = null, heldAt = 0;
@@ -247,7 +248,9 @@ const game = foam(scene, camera, props.hoop, sfx, text => say(text, 4000));   //
 const muska = winamp({ video: '8kRTFNU4ZaE', title: "CHAD MUSKA - FULFILL THE DREAM (SHORTY'S 1998)", onClose: back });
 const noTeeth = winamp({ audio: 'assets/conformity/no-teeth.mp3', title: 'CONFORMITY - NO TEETH', side: 'right', onClose: back });   // Bryan's high school band
 const band = winamp({ video: 'RUUP4kkl6Z0', title: 'FACE DOWN IN MEXICO CITY WITH AN ICE PICK IN THE BACK - SHANGHAI THE SAILOR', side: 'right', onClose: back });   // Bryan's college band
-const offroad = jimmy({ audio: () => ac, exit: back });
+const offroad = jimmy({ audio: () => ac, exit: back }), dreamer = tadzio({ audio: () => ac });
+const d20 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.024), new THREE.MeshStandardMaterial({ color: '#c62f2f', roughness: 0.35, flatShading: true }));   // the die from the dream
+d20.position.set(1.36, 0.69, -1.66); d20.rotation.set(0.4, 0.9, 0.2); d20.visible = false; d20.castShadow = true; scene.add(d20);
 const fit = (h, w) => { const t = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max(h / t, w / (t * camera.aspect)); };   // how far back to stand to see h by w metres
 const SPOTS = {
   computer: {
@@ -358,6 +361,35 @@ const SPOTS = {
     },
     leave() { trip = null; camera.up.set(0, 1, 0); camera.position.copy(SEAT[0]); focus.copy(SEAT[1]); outside.air(false); },   // back on the roof in a blink, then the usual way in
   },
+  bed: {
+    mesh: (() => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.62, 1.95), new THREE.MeshBasicMaterial({ visible: false })); m.position.set(1.31, 0.31, -1.03); scene.add(m); return m; })(),
+    menu: ['*~ DA BED ~*', [['GO TO SLEEP', 'sleep'], ['MAKE THE BED', 'made']]],
+  },
+  made: { mesh: [], act() { say('lol no.', 2500); } },
+  woke: {   // out of the dream into the next morning, looking down at the pillow, where the die from the dream is lying
+    mesh: [], hint: "Morning. There's a red twenty-sided die on your pillow.",
+    view: () => [new THREE.Vector3(1.12, 1.08, -1.3), d20.position.clone()],
+    go() { late = -(clock.getElapsedTime() + AT); called = 2; d20.visible = true; say('Horseheads, NY. The next morning.', 5000); },   // the afternoon light again, as morning
+    click: () => !!ray.intersectObject(d20)[0] && (SPOTS.d20.act(), true),   // a click on the die says what it is; anywhere else, back to the room
+  },
+  d20: { mesh: d20, act() { say("A red twenty-sided die. You've never seen it before. It landed on 20.", 5000); } },
+  sleep: {   // lie back, it gets dark, the lamp goes off, the ceiling goes, and under the night sky you dream of Tadzio
+    mesh: [], secs: 2.5,
+    view: () => [new THREE.Vector3(1.31, 0.8, -1.62), new THREE.Vector3(0.55, 2.45, -1.2)],   // up at the ceiling, over the room, not at the wall beside the bed
+    go() { const t = clock.getElapsedTime(); bedtime = { at: t + 2.5, from: late, need: Math.max(0, DUSK + 60 - (t + AT + late)) }; called = 2; },   // nobody calls you down to dinner once you're in bed
+    place() {
+      const s = clock.getElapsedTime() - bedtime.at, gone = smooth(4.5, 8.5, s);
+      late = bedtime.from + bedtime.need * smooth(0, 3, s);   // three hours of evening in three seconds
+      if (s > 3.2 && !bedtime.off) { bedtime.off = true; lamp.user = false; }
+      for (const m of room.ceiling) { if (!m.material.transparent) { m.material.transparent = true; m.material.needsUpdate = true; } m.material.opacity = 1 - gone; m.visible = gone < 1; }
+      outside.stars(gone > 0);
+      if (s > 9.5 && !bedtime.dream) { bedtime.dream = true; dreamer.open(() => { location.hash = 'woke'; }); }
+    },
+    leave() {
+      bedtime = null; dreamer.close(); outside.stars(false);
+      for (const m of room.ceiling) { m.material.transparent = false; m.material.opacity = 1; m.material.needsUpdate = true; m.visible = true; }
+    },
+  },
   offroad: {   // OFF ROAD: a look out at the field behind the house, and then the field as a cartoon, in Dave's dad's Jimmy
     mesh: [], view: () => SPOTS.window.view(), enter: offroad.open, leave: offroad.close,
   },
@@ -440,7 +472,7 @@ renderer.domElement.addEventListener('click', e => {   // a spot can take the cl
   if (spot?.click?.()) return;
   if (!spot && game.pick(ray.ray, true)) return void (location.hash = 'hoop');   // a foam ball: pick it up and go shoot
   if (!spot && SPOTS[k]?.act) return void SPOTS[k].act([SPOTS[k].mesh].flat().find(o => o === picked || o.getObjectById(picked.id)));   // some things you use where they are
-  if (!spot && SPOTS[k]?.menu) return menu(e.clientX, e.clientY, ...SPOTS[k].menu, to => { location.hash = to; });
+  if (!spot && SPOTS[k]?.menu) return menu(e.clientX, e.clientY, ...SPOTS[k].menu, to => { if (SPOTS[to].act) SPOTS[to].act(); else location.hash = to; });
   location.hash = spot ? '' : k || '';
 });
 const backButton = document.getElementById('back');
@@ -464,17 +496,7 @@ addEventListener('resize', () => { if (spot && !fly) { const [to, toLook] = spot
 // and a half hours of his. ?at=<minutes> starts the visit that many minutes in.
 const DUSK = 600, AT = (+new URLSearchParams(location.search).get('at') || 0) * 60, SUN_DAY = SUN.clone(), SUN_LOW = new THREE.Vector3(-0.55, -0.12, 0.83).normalize();
 const smooth = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
-const TINT = { sunDay: sun.color.clone(), sunSet: new THREE.Color('#ff7a2e'), beamDay: beam.uniforms.uCol.value.clone(), skyDay: skyLight.color.clone(), hemiDay: hemi.color.clone(), night: new THREE.Color('#34467e'), white: new THREE.Color('#fff') };
-const dusky = (() => {   // the sky outside the window after sunset, laid over the yard: blue at the top, orange at the tree line
-  const c = Object.assign(document.createElement('canvas'), { width: 4, height: 256 }), x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256);
-  [[0, '#1b2550'], [0.45, '#4b4a86'], [0.7, '#c4688a'], [0.85, '#ff9a55'], [1, '#ffb867']].forEach(([s, col]) => g.addColorStop(s, col));
-  x.fillStyle = g; x.fillRect(0, 0, 4, 256);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const f = 3.5, eye = SPOTS.window.view()[0];   // grown about the eye at the window, out past the edge of the porch roof, so the roof stays in front of it
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(4 * f, 3 * f), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
-  m.position.set(WINDOW.center.x, WINDOW.y0 + 1.3, WINDOW.z - 0.6).sub(eye).multiplyScalar(f).add(eye); scene.add(m);
-  return m;
-})();
+const TINT = { sunDay: sun.color.clone(), sunSet: new THREE.Color('#ff7a2e'), beamDay: beam.uniforms.uCol.value.clone(), skyDay: skyLight.color.clone(), hemiDay: hemi.color.clone(), night: new THREE.Color('#34467e') };
 const lamp = (() => {   // a bulb under the desk lamp's shade, found as the highest point of the lamp, shining down onto the desk
   const top = new THREE.Vector3(0, -Infinity, 0), v = new THREE.Vector3();
   props.lamp.updateMatrixWorld(true);
@@ -487,7 +509,7 @@ const lamp = (() => {   // a bulb under the desk lamp's shade, found as the high
 const say = (text, ms = 7000) => { status.textContent = text; status.style.opacity = 1; setTimeout(() => { status.style.opacity = 0; }, ms); };
 let shadowsAt = 0, called = 0;
 function dusk(t) {
-  const s = t + AT, k = Math.min(1, s / DUSK), up = 1 - smooth(0.5, 0.85, k), night = smooth(0.4, 1, k);
+  const s = t + AT + late, k = Math.min(1, s / DUSK), up = 1 - smooth(0.5, 0.85, k), night = smooth(0.4, 1, k);
   SUN.lerpVectors(SUN_DAY, SUN_LOW, smooth(0, 0.85, k)).normalize();
   sun.position.copy(WINDOW.center).addScaledVector(SUN, -9); sun.target.position.copy(WINDOW.center).addScaledVector(SUN, 2); sun.target.updateMatrixWorld();
   sun.color.lerpColors(TINT.sunDay, TINT.sunSet, smooth(0.3, 0.8, k)); sun.intensity = 9 * up;
@@ -496,9 +518,8 @@ function dusk(t) {
   skyLight.color.lerpColors(TINT.skyDay, TINT.night, night); skyLight.intensity = 2.2 - 1.95 * night;
   hemi.color.lerpColors(TINT.hemiDay, TINT.night, night); hemi.intensity = 0.7 - 0.58 * night;
   bounce.intensity = 1.3 * up; patchGlow.intensity = 1.6 * up;
-  scene.backgroundIntensity = 1.35 - 1.27 * night; scene.environmentIntensity = 0.15 - 0.12 * night; renderer.toneMappingExposure = 1.05 - 0.2 * night;
-  dusky.visible = spot !== SPOTS.roof && spot !== SPOTS.float;   // it hangs out past the porch roof, so it is only for looking out from the room
-  dusky.material.opacity = 0.9 * smooth(0.35, 0.9, k); dusky.material.color.lerpColors(TINT.white, TINT.night, smooth(0.8, 1, k));
+  scene.environmentIntensity = 0.15 - 0.12 * night; renderer.toneMappingExposure = 1.05 - 0.2 * night;
+  outside.evening(night);
   if (k > 0.7 !== lamp.dark) { lamp.dark = k > 0.7; lamp.user = null; }   // at dusk it comes on, whatever you did before
   if ((lamp.user ?? lamp.dark) !== lamp.on) { lamp.on = !lamp.on; lamp.bulb.visible = lamp.on; sfx('click'); }
   lamp.light.intensity += ((lamp.on ? 7 : 0) - lamp.light.intensity) * 0.3;
@@ -517,7 +538,7 @@ const clock = new THREE.Clock(), still = new THREE.Vector2();
 let drift = 1;   // the head turn and the idle sway; both stop while you look at something close
 route();
 renderer.setAnimationLoop(() => {
-  if (offroad.active && !fly) return;   // the cartoon covers the room
+  if ((offroad.active || dreamer.playing) && !fly) return;   // the cartoon or the dream's game covers the room
   const t = clock.getElapsedTime();
   if (fly) {
     const s = Math.min(1, (t - fly.t0) / (fly.secs ?? 1.4)), e = s * s * (3 - 2 * s);

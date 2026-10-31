@@ -59,7 +59,8 @@ export function buildRoom(scene) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), carpet);
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
   g.add(floor);
-  g.add(box(x1 - x0 + 2 * T, 0.1, z1 - z0 + 2 * T, ceiling, 0, h + 0.05, 0));   // solid, so the high sun cannot come in through it
+  const lid = box(x1 - x0 + 2 * T, 0.1, z1 - z0 + 2 * T, ceiling, 0, h + 0.05, 0);   // solid, so the high sun cannot come in through it
+  g.add(lid);
 
   // the back wall is built around the window opening, so the sun can only come in through it
   const bz = z0 - T / 2;
@@ -161,6 +162,6 @@ export function buildRoom(scene) {
   g.add(dome);
 
   scene.add(g);
-  return { tick: t => { curtainTime.value = t; }, screen };
+  return { tick: t => { curtainTime.value = t; }, screen, ceiling: [lid, dome] };
 }
 const curtainTime = { value: 0 };

@@ -27,6 +27,49 @@ const HOLD = 1.2, DIVE = 6, SLOW = 10, K = 5.1, CLIMB = 0.2, DOWN = 300, LAND = 
 // either end of it; metres short of Chautauqua Hall where the descent starts; a first guess at the ground there, above the ellipsoid
 const ease = x => (x = Math.min(1, Math.max(0, x))) * x * (3 - 2 * x);
 
+// The evening, shared by everything out there: the photo yard's sky, the sky over the map, and the map. uNight goes 0 to 1 with the dusk.
+// In June the full moon comes up in the southeast as the sun goes down in the northwest, so it rises right outside this window.
+const NIGHT = { uNight: { value: 0 }, uTime: { value: 0 }, uMoon: { value: new THREE.Vector3(0, 0, -1) }, uGlow: { value: new THREE.Vector2(0, 1) } };
+const dir = (az, el) => { const D = THREE.MathUtils.DEG2RAD, a = (az - HOUSE.heading) * D; return new THREE.Vector3(Math.sin(a) * Math.cos(el * D), Math.sin(el * D), -Math.cos(a) * Math.cos(el * D)); };
+NIGHT.uGlow.value.set(dir(302, 0).x, dir(302, 0).z);   // where the sun went down
+const HASH = 'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n';
+const SKY = `uniform float uNight, uTime; uniform vec3 uMoon; uniform vec2 uGlow;\n${HASH}
+vec3 skyAt(vec3 d) {   // by how high you look: the day's blue, then a dusk going orange at the horizon, then night, stars, and the moon
+  float e = max(asin(clamp(d.y, -1., 1.)), 0.), n = uNight;
+  vec3 day = e < .251 ? mix(vec3(.91, 1.03, 1.13), vec3(.37, .62, 1.), e / .251) : mix(vec3(.37, .62, 1.), vec3(.07, .21, .62), (e - .251) / 1.32);
+  vec3 dusk = mix(vec3(.95, .42, .22), vec3(.05, .07, .2), pow(min(1., e / .4), .5)), dark = mix(vec3(.018, .024, .05), vec3(.002, .003, .012), pow(min(1., e / .8), .5));
+  vec3 c = mix(mix(day, dusk, smoothstep(.15, .55, n)), dark, smoothstep(.55, .95, n));
+  c += vec3(.9, .35, .1) * pow(max(0., dot(normalize(d.xz + 1e-5), uGlow)), 4.) * exp(-e * 7.) * smoothstep(.2, .5, n) * (1. - smoothstep(.75, 1., n));
+  float N = 700., lat = asin(clamp(d.y, -1., 1.)), j = floor(lat * N / 6.2832), nl = max(1., floor(N * cos((j + .5) * 6.2832 / N)));   // a star in one cell in forty
+  vec2 at = vec2((atan(d.z, d.x) + 3.1416) / 6.2832 * nl, lat * N / 6.2832), cell = floor(at);
+  float star = step(.975, hash(cell + 3.3)) * smoothstep(.13, 0., length(fract(at) - .2 - .6 * vec2(hash(cell), hash(cell + 7.1))));
+  c += star * (.3 + 1.6 * pow(hash(cell + 1.9), 3.)) * (.75 + .25 * sin(uTime * 3. + hash(cell) * 60.)) * smoothstep(.75, 1., n) * smoothstep(.02, .15, e);
+  float m = dot(d, uMoon);
+  c += vec3(1., .96, .88) * (3. * smoothstep(.99995, .99996, m) + .2 * pow(max(m, 0.), 400.)) * smoothstep(.45, .85, n);
+  return c;
+}
+`;
+
+// The map at night: the daylight photo goes dark and moonlit, and where it is grey and flat (roads, roofs, car parks) a light comes on in
+// most 24 m squares, a sodium orange or a warm white. Far off, the lights are drawn bigger, so a town far below runs together into a glow.
+function nightTile(mat) {
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, NIGHT);
+    sh.vertexShader = 'varying vec3 vWorld;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWorld = (modelMatrix * vec4(transformed, 1.)).xyz;');
+    sh.fragmentShader = `uniform float uNight;\nvarying vec3 vWorld;\n${HASH}` + sh.fragmentShader
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        float hi = max(max(diffuseColor.r, diffuseColor.g), diffuseColor.b), lum = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
+        float town = smoothstep(.3, .12, (hi - min(min(diffuseColor.r, diffuseColor.g), diffuseColor.b)) / (hi + 1e-4)) * smoothstep(.06, .15, lum);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum), .5 * uNight) * mix(vec3(1.), vec3(.07, .09, .16), uNight);`)
+      .replace('#include <opaque_fragment>', `vec2 cell = floor(vWorld.xz / 24.), lamp = (cell + .25 + .5 * vec2(hash(cell), hash(cell + 9.1))) * 24.;
+        float r = max(1.4, distance(cameraPosition, vWorld) * .0013), level = smoothstep(.75, .9, abs(normalize(cross(dFdx(vWorld), dFdy(vWorld))).y));   // on roads and roofs, not up the sides of trees
+        outgoingLight += mix(vec3(1., .55, .2), vec3(1., .85, .6), hash(cell + 5.3)) * step(1. - .8 * town * level, hash(cell + 3.7)) * smoothstep(r, r * .3, distance(vWorld.xz, lamp)) * 2. * smoothstep(.6, 1., uNight);
+        #include <opaque_fragment>`);
+  };
+  mat.customProgramCacheKey = () => 'night-tile';
+  mat.needsUpdate = true;
+}
+
 export function buildOutside(scene, camera, renderer) {
   const g = new THREE.Group(), trim = new THREE.MeshStandardMaterial({ color: '#cfcdc6', roughness: 0.5 });
   const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.receiveShadow = true; g.add(m); return m; };
@@ -46,6 +89,24 @@ export function buildOutside(scene, camera, renderer) {
   box(0.1, W.y1 - W.y0 + 0.2, 0.03, trim, W.x0 - 0.05, cy, OUT - 0.015); box(0.1, W.y1 - W.y0 + 0.2, 0.03, trim, W.x1 + 0.05, cy, OUT - 0.015);
   box(W.x1 - W.x0 + 0.2, 0.1, 0.03, trim, cx, W.y1 + 0.05, OUT - 0.015); box(W.x1 - W.x0 + 0.24, 0.04, 0.07, trim, cx, W.y0 - 0.02, OUT - 0.035);   // casing and sill
   box(19.5, 0.22, 0.03, trim, 0.25, 2.92, OUT - 0.46); box(19.5, 0.02, 0.45, trim, 0.25, 2.82, OUT - 0.225);   // the eave over it: fascia and soffit
+
+  (() => {   // fireflies over the lawn, each flashing every few seconds as it drifts
+    const n = 70, p = new Float32Array(n * 3), seed = new Float32Array(n);
+    for (let i = 0; i < n; i++) { p.set([-12 + Math.random() * 26, GROUND + 0.3 + Math.random() * 1.8, OUT - 4 - Math.random() * 26], i * 3); seed[i] = Math.random(); }
+    const geo = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(p, 3)).setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+    const pts = new THREE.Points(geo, new THREE.ShaderMaterial({
+      uniforms: { ...NIGHT, uSize: { value: 90 * renderer.getPixelRatio() } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `attribute float seed; uniform float uTime, uNight, uSize; varying float vGlow;
+        void main() {
+          float t = uTime + seed * 40., c = fract(t / (2.5 + 3. * fract(seed * 7.13)));
+          vGlow = smoothstep(0., .06, c) * smoothstep(.3, .1, c) * smoothstep(.6, .95, uNight);
+          vec4 mv = modelViewMatrix * vec4(position + vec3(sin(t * .31) * .8, sin(t * .53) * .35, cos(t * .23) * .8), 1.);
+          gl_PointSize = clamp(uSize / -mv.z, 2., 12.); gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: 'varying float vGlow;\nvoid main() { gl_FragColor = vec4(vec3(.8, 1., .35) * vGlow * 6. * (1. - smoothstep(0., 1., length(gl_PointCoord - .5) * 2.)), 1.); }',
+    }));
+    pts.frustumCulled = false; g.add(pts);
+  })();
   scene.add(g);
 
   // the backyard photo, its lawn laid flat on the ground and its trees on a dome 100 m out. The photo is true from where it was taken,
@@ -54,16 +115,26 @@ export function buildOutside(scene, camera, renderer) {
   new RGBELoader().load('assets/hdri/belfast_farmhouse_2k.hdr', t => {
     yard = new GroundedSkybox(t, LENS, 100);
     yard.position.set(WINDOW.center.x, GROUND + LENS, OUT - 1.2); yard.rotation.y = 0.6; yard.visible = !aloft;
+    yard.material.color.setScalar(1.35);
+    yard.material.onBeforeCompile = sh => {   // the photo's sky is its bright part above the horizon: the evening takes it over, and the trees go black against it
+      Object.assign(sh.uniforms, NIGHT);
+      sh.vertexShader = 'varying vec3 vDir;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvDir = mat3(modelMatrix) * position;');
+      sh.fragmentShader = SKY + 'varying vec3 vDir;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        vec3 d = normalize(vDir), px = sampledDiffuseColor.rgb; float n = uNight, lum = dot(px, vec3(.2126, .7152, .0722));
+        float open = smoothstep(0., .05, d.y) * max(max(smoothstep(1.25, 1.8, px.b / (px.r + 1e-3)) * smoothstep(.1, .25, lum), smoothstep(.28, .45, lum) * smoothstep(.85, 1., px.b / (px.g + 1e-3))), smoothstep(1.5, 3., lum));   // blue, or a cloud (not green like the trees), or the sun
+        vec3 land = diffuseColor.rgb * mix(vec3(1.), vec3(1., .72, .55), smoothstep(.1, .45, n) * (1. - smoothstep(.5, .85, n)));
+        land = mix(land, vec3(dot(land, vec3(.2126, .7152, .0722))), .55 * n) * mix(1., .06, smoothstep(.2, 1., n)) * mix(vec3(1.), vec3(.6, .75, 1.2), n);
+        diffuseColor.rgb = mix(land, mix(diffuseColor.rgb, skyAt(d), smoothstep(.2, .65, n)), open);`);
+    };
     scene.add(yard);
   });
 
-  const sky = (() => {   // a plain summer sky for over the real hills, which the backyard photo's own trees would poke up behind
-    const c = Object.assign(document.createElement('canvas'), { width: 2, height: 256 }), x = c.getContext('2d'), gr = x.createLinearGradient(0, 0, 0, 256);
-    [[0, '#3f6fb5'], [0.42, '#8fb4e0'], [0.5, '#d6e2ec'], [1, '#d6e2ec']].forEach(([s, col]) => gr.addColorStop(s, col));
-    x.fillStyle = gr; x.fillRect(0, 0, 2, 256);
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.mapping = THREE.EquirectangularReflectionMapping;
-    return t;
-  })();
+  const heaven = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.ShaderMaterial({   // the sky over the map, drawn first, round the camera
+    uniforms: NIGHT, side: THREE.BackSide, depthTest: false, depthWrite: false,
+    vertexShader: 'varying vec3 vDir;\nvoid main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+    fragmentShader: `${SKY}varying vec3 vDir;\nvoid main() { gl_FragColor = vec4(skyAt(normalize(vDir)), 1.); }`,
+  }));
+  heaven.renderOrder = -1; heaven.frustumCulled = false; heaven.visible = false; scene.add(heaven);
   const credit = Object.assign(document.createElement('div'), { hidden: true });   // Google's terms: its logo, 16 to 19 px high with clear space round it, over the data credits
   credit.style.cssText = 'position:fixed;right:0;bottom:6px;z-index:5;max-width:70vw;padding-right:10px;text-align:right;font:11px/1.4 Arial,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;pointer-events:none';
   credit.innerHTML = '<img src="assets/google/GoogleMaps_Logo_WithDarkOutline.svg" alt="Google Maps" style="display:block;height:18px;margin:10px 0 5px auto"><span></span>';
@@ -72,7 +143,7 @@ export function buildOutside(scene, camera, renderer) {
   blink.style.cssText = 'position:fixed;inset:0;z-index:4;background:#fff;opacity:0;pointer-events:none';
   document.body.append(blink);
 
-  let tiles = null, aloft = false, creditAt = 0, dim = 1, ell = null, toRoom = null, plan = null;
+  let tiles = null, aloft = false, creditAt = 0, ell = null, toRoom = null, plan = null;
 
   // The trip: slowly over to Hanover Square, then faster and faster west, higher the faster it goes, and slower and lower again down to the
   // Chautauqua Hall. Two hundred kilometres out the ground is three and a half kilometres below the room's flat frame, so the long leg
@@ -120,7 +191,7 @@ export function buildOutside(scene, camera, renderer) {
     toRoom = new THREE.Matrix4().set(c, -s, 0, 0, 0, 0, 1, 0, -s, -c, 0, 0, 0, 0, 0, 1).multiply(enu.invert());   // east, north, up to the room's x, y, z
     toRoom.decompose(tiles.group.position, tiles.group.quaternion, tiles.group.scale);
     ell = WGS84_ELLIPSOID;
-    tiles.addEventListener('load-model', ({ scene: m }) => m.traverse(o => o.material?.color.setScalar(dim)));
+    tiles.addEventListener('load-model', ({ scene: m }) => m.traverse(o => { if (o.material) nightTile(o.material); }));
     tiles.group.visible = aloft;
     scene.add(tiles.group);
   }
@@ -134,7 +205,7 @@ export function buildOutside(scene, camera, renderer) {
       aloft = on;
       if (on && !tiles) load(); else if (tiles) tiles.group.visible = on;
       g.visible = !on; if (yard) yard.visible = !on;
-      scene.background = on ? sky : null; credit.hidden = !on;
+      heaven.visible = on; credit.hidden = !on;
       blink.style.transition = 'none'; blink.style.opacity = 1; void blink.offsetWidth;
       blink.style.transition = 'opacity 1.2s'; blink.style.opacity = 0;
     } : null,
@@ -150,16 +221,18 @@ export function buildOutside(scene, camera, renderer) {
       const y = (t - SLOW - plan.fast - plan.end.secs - HOLD) / DIVE;
       return { ...plan.frame(plan.in.curve.getPointAt(ease(y)), plan.in.look, plan.end.up, 70 * (1 - ease(y)) + 7), arrived: true, into: y >= 0.55 };   // into the white while the hall is still twenty metres off, before the map tears up close
     },
+    stars(on) { heaven.visible = on || aloft; },   // the night sky, over a room with no ceiling
+    evening(n) {   // 0 in the afternoon to 1 at night; the moon climbs as it gets dark
+      NIGHT.uNight.value = n; NIGHT.uMoon.value.copy(dir(122, 2 + 12 * n));
+    },
     tick(t) {
-      yard?.material.color.setScalar(scene.backgroundIntensity);
+      NIGHT.uTime.value = t; heaven.position.copy(camera.position); heaven.scale.setScalar(camera.near * 4);
       if (!tiles?.group.visible) return;
       tiles.setResolutionFromRenderer(camera, renderer);
       tiles.update();
       if (t - creditAt < 1) return;
       creditAt = t;
       credit.lastChild.textContent = tiles.getAttributions().filter(a => a.type === 'string').map(a => a.value).join('; ');
-      const d = scene.backgroundIntensity / 1.35;   // the map darkens with the evening, as the sky does
-      if (Math.abs(d - dim) > 0.02) { dim = d; tiles.group.traverse(o => o.material?.color.setScalar(dim)); }
     },
   };
 }
