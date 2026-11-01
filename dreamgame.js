@@ -137,8 +137,28 @@ const MEET = [['tadzio', 'Dada?', 'unsure'], ['', '* (You look behind you. Nobod
   ['tadzio', "I'm Tadzio. I'm the Dungeon Master tonight.", 'smile'], ['tadzio', 'You can be the fighter. Fighters are good at hugging.', 'smile'],
   ['tadzio', '...I mean hitting. Hitting things.', 'unsure'], ['tadzio', 'Want an eyeball? I made them.', 'smile'], ['', '* (Tadzio joined the party.)']];
 
+const TOUCH = [['<kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>', 'the pad'], ['<kbd>←</kbd><kbd>→</kbd>', '<kbd>◀</kbd><kbd>▶</kbd>'],
+  ['<kbd>↑</kbd><kbd>↓</kbd>', '<kbd>▲</kbd><kbd>▼</kbd>'], ['<kbd>Z</kbd>', '<kbd>A</kbd>'], ['<kbd>X</kbd>', '<kbd>B</kbd>'], ['the ARROW KEYS or W A S D', 'the pad'],
+  ['Press Z', 'Tap A'], ['press Z', 'tap A'], ['Z to', 'A to']];   // what the keys are called on a phone: the pad, A, and B
+const coarse = matchMedia('(pointer: coarse)'), words = t => (coarse.matches ? TOUCH.reduce((s, [a, b]) => s.split(a).join(b), t) : t);
+
 const CSS = `
-.dg { position: fixed; inset: 0; z-index: 9; background: #000; display: grid; place-items: center; }
+.dg { position: fixed; inset: 0; z-index: 9; background: #000; display: grid; place-items: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+.dg .pad, .dg .ab { position: absolute; display: none; z-index: 2; }
+.dg .pad { left: 4vw; bottom: 5vh; width: 38vmin; height: 38vmin; grid-template: repeat(3, 1fr) / repeat(3, 1fr); }
+.dg .ab { right: 4vw; bottom: 7vh; gap: 4vmin; grid-auto-flow: column; align-items: end; }
+.dg .pad button, .dg .ab button { border: 2px solid #8a8a96; background: rgba(40, 40, 52, .75); color: #fff; font: 6vmin/1 'DotGothic16', monospace; padding: 0; touch-action: none; }
+.dg .pad button { border-radius: 1.5vmin; } .dg .pad .u { grid-area: 1 / 2; } .dg .pad .l { grid-area: 2 / 1; } .dg .pad .r { grid-area: 2 / 3; } .dg .pad .d { grid-area: 3 / 2; }
+.dg .ab button { width: 17vmin; height: 17vmin; border-radius: 50%; } .dg .ab .a { margin-bottom: 7vmin; background: rgba(150, 40, 60, .8); }
+.dg .pad button.on, .dg .ab button.on { background: rgba(255, 210, 58, .55); }
+/* on a touch screen: the pad and the buttons; held upright, the game up top, the words under it, and the pad and buttons at the bottom;
+   held sideways, the pad and buttons either side of the game */
+.dg.touch .pad, .dg.touch .ab { display: grid; }
+.dg.touch .help { top: .8vh; font-size: 13px; }
+.dg.touch.tall { place-items: start center; padding-top: 10vh; }
+.dg.touch.tall .talk { bottom: auto; top: calc(10vh + 75vw + 1.5vh); width: 94vw; font-size: 16px; min-height: 0; }
+.dg.touch:not(.tall) .talk { width: 54vw; bottom: 2vh; font-size: 15px; min-height: 0; padding: .5em .8em; }
+.dg.touch:not(.tall) .talk canvas { width: 3.6em; height: 3.6em; }
 .dg canvas.world { image-rendering: pixelated; }
 .dg .talk { position: absolute; left: 50%; bottom: 3vh; transform: translateX(-50%); width: min(92vw, 860px); box-sizing: border-box; min-height: 7.5em; padding: .8em 1em;
   background: #000; border: .28em solid #fff; display: none; gap: 1em; align-items: flex-start; font: clamp(16px, 2.3vw, 25px)/1.5 'DotGothic16', ui-monospace, monospace; color: #fff; letter-spacing: .02em; }
@@ -184,9 +204,9 @@ export function dreamgame({ audio, done }) {
     if (talk.typing) { clearInterval(talk.typing); talk.typing = null; p.textContent = talk.full; return; }
     talk.i++;
     if (talk.i >= talk.lines.length) { box.classList.remove('on'); const then = talk.then; talk = null; then?.(); return; }
-    const [who, text, mood] = talk.lines[talk.i];
+    let [who, text, mood] = talk.lines[talk.i];
     box.classList.add('on'); box.classList.toggle('zelda', who === 'zelda'); pic.style.display = who === 'tadzio' ? 'block' : 'none'; if (who === 'tadzio') face(pic, mood);
-    talk.full = text; p.textContent = ''; let k = 0;
+    text = words(text); talk.full = text; p.textContent = ''; let k = 0;
     talk.typing = setInterval(() => {
       p.textContent = text.slice(0, ++k); if (k % 2 && text[k - 1] !== ' ') blip(who);
       if (k >= text.length) { clearInterval(talk.typing); talk.typing = null; }
@@ -477,7 +497,7 @@ export function dreamgame({ audio, done }) {
     const dt = Math.min(0.05, (now - (last || now)) / 1000), t = now / 1000; last = now;
     if (!room) return;
     const k = (...ks) => (ks.some(c => keys[c]) ? 1 : 0), dx = k('ArrowRight', 'd') - k('ArrowLeft', 'a'), dy = k('ArrowDown', 's') - k('ArrowUp', 'w');
-    const h = goal(); if (h !== help) root.querySelector('.help').innerHTML = help = h;   // only our own fixed strings, never a visitor's
+    const h = words(goal()); if (h !== help) root.querySelector('.help').innerHTML = help = h;   // only our own fixed strings, never a visitor's
     if (mode === 'battle') return battle(dt, t, dx, dy);
     if (room.tennis) return tennis(dt, t, dx);
     if (!talk && !ending && (dx || dy)) {   // walking, a tile's edge at a time, and Tadzio a few steps behind in your footprints
@@ -528,17 +548,30 @@ export function dreamgame({ audio, done }) {
     if (!e.repeat) press(e.key);
   };
   const up = e => { keys[e.key] = false; };
-  const fit = () => { const k = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H))); cv.style.width = W * k + 'px'; cv.style.height = H * k + 'px'; };
+  const fit = () => {   // whole pixels where there is room for them; on a phone, as big as fits beside or above the pad
+    const touch = coarse.matches, tall = touch && innerHeight > innerWidth, area = touch ? (tall ? [innerWidth, innerHeight * 0.55] : [innerWidth * 0.56, innerHeight]) : [innerWidth, innerHeight];
+    root.classList.toggle('touch', touch); root.classList.toggle('tall', tall);
+    let k = Math.min(area[0] / W, area[1] / H); if (k >= 2) k = Math.floor(k);
+    cv.style.width = W * k + 'px'; cv.style.height = H * k + 'px';
+  };
   return {
     get active() { return !!root; },
     open() {
       if (!document.getElementById('dgcss')) document.head.insertAdjacentHTML('beforeend', `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap"><style id="dgcss">${CSS}</style>`);   // a pixel font whose Z doesn't look like a 2
-      root = Object.assign(document.createElement('div'), { className: 'dg', innerHTML: '<canvas class="world" width="320" height="240"></canvas><div class="talk"><canvas width="48" height="48"></canvas><p></p></div><div class="fade"></div><div class="help"></div>' });
+      root = Object.assign(document.createElement('div'), { className: 'dg', innerHTML: '<canvas class="world" width="320" height="240"></canvas><div class="talk"><canvas width="48" height="48"></canvas><p></p></div><div class="fade"></div><div class="help"></div>' +
+        '<div class="pad"><button class="u" data-k="ArrowUp">▲</button><button class="l" data-k="ArrowLeft">◀</button><button class="r" data-k="ArrowRight">▶</button><button class="d" data-k="ArrowDown">▼</button></div>' +
+        '<div class="ab"><button class="b" data-b="x">B</button><button class="a" data-b="z">A</button></div>' });
       document.body.append(root);
       cv = root.querySelector('.world'); g = cv.getContext('2d'); fit();
       flies = Array.from({ length: 26 }, () => ({ x: 20 + Math.random() * 280, y: 20 + Math.random() * 200, s: Math.random() * 10 }));
       addEventListener('keydown', down, true); addEventListener('keyup', up, true); addEventListener('resize', fit);
-      root.addEventListener('pointerdown', () => press('z'));
+      root.addEventListener('pointerdown', e => { if (e.target === cv || e.target.closest('.talk')) press('z'); });   // a tap on the game or the words is Z
+      for (const b of root.querySelectorAll('.pad button')) b.addEventListener('pointerdown', e => {   // the pad: held down like the arrow keys, until that finger lifts anywhere
+        const k = b.dataset.k, off = ev => { if (ev.pointerId !== e.pointerId) return; keys[k] = false; b.classList.remove('on'); removeEventListener('pointerup', off); removeEventListener('pointercancel', off); };
+        e.preventDefault(); keys[k] = true; b.classList.add('on'); press(k);
+        addEventListener('pointerup', off); addEventListener('pointercancel', off);
+      });
+      for (const b of root.querySelectorAll('.ab button')) b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 150); press(b.dataset.b); });
       go('field'); raf = requestAnimationFrame(frame);
     },
     close() {

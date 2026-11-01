@@ -19,6 +19,7 @@ import { RECYCLED } from './recycled.js';
 import { buildOutside, SEAT, AIR } from './outside.js';
 import { jimmy } from './jimmy.js';
 import { tadzio } from './tadzio.js';
+import { wardrobe } from './clothes.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -181,14 +182,20 @@ resize();
 // your head turns a little with the pointer, and drifts when you leave it alone
 // with a mouse, wherever the pointer is; with a finger, you drag the room around you, far enough to see every wall
 const mouse = new THREE.Vector2(), look = new THREE.Vector2(), aim = new THREE.Vector3(), turn = new THREE.Vector2(), turned = new THREE.Vector2(), UP = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3();
-addEventListener('pointermove', e => { if (e.pointerType === 'mouse') mouse.set(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1); });
-let drag = { moved: 0 };   // so the end of a drag isn't taken for a tap
-renderer.domElement.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; spot?.press?.(e); });
-renderer.domElement.addEventListener('pointerup', e => spot?.release?.(e));
+addEventListener('pointermove', e => { if (e.pointerType === 'mouse' && !clothes.holding) mouse.set(e.clientX / innerWidth * 2 - 1, e.clientY / innerHeight * 2 - 1); });
+let drag = { moved: 0 };   // so the end of a drag isn't taken for a tap; cloth: a drag that carries a piece of laundry
+renderer.domElement.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, moved: 0 };
+  if (!spot && !held && !fly) { hit(e); drag.cloth = clothes.grab(e, hitAt); }
+  spot?.press?.(e);
+});
+renderer.domElement.addEventListener('pointerup', e => { clothes.drop(); spot?.release?.(e); });
+renderer.domElement.addEventListener('pointercancel', () => clothes.drop());
 renderer.domElement.addEventListener('pointermove', e => {
   if (drag.x == null || (e.pointerType !== 'touch' && !e.buttons)) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
+  if (drag.cloth) return void clothes.move(e);
   if (held) return void (held.spin += dx * 0.012);   // turning the trophy in your hand
   if (e.pointerType === 'touch' && (!spot || spot.free)) turn.set(THREE.MathUtils.clamp(turn.x - dx / innerWidth * 2.2, -1.45, 1.45), THREE.MathUtils.clamp(turn.y + dy / innerHeight * 1.2, -0.45, 0.45));
 });
@@ -249,6 +256,7 @@ const muska = winamp({ video: '8kRTFNU4ZaE', title: "CHAD MUSKA - FULFILL THE DR
 const noTeeth = winamp({ audio: 'assets/conformity/no-teeth.mp3', title: 'CONFORMITY - NO TEETH', side: 'right', onClose: back });   // Bryan's high school band
 const band = winamp({ video: 'RUUP4kkl6Z0', title: 'FACE DOWN IN MEXICO CITY WITH AN ICE PICK IN THE BACK - SHANGHAI THE SAILOR', side: 'right', onClose: back });   // Bryan's college band
 const offroad = jimmy({ audio: () => ac, exit: back }), dreamer = tadzio({ audio: () => ac });
+const clothes = wardrobe({ scene, camera, renderer, pile: props.pile, chair: props.flameboy });
 const d20 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.024), new THREE.MeshStandardMaterial({ color: '#c62f2f', roughness: 0.35, flatShading: true }));   // the die from the dream
 d20.position.set(1.36, 0.69, -1.66); d20.rotation.set(0.4, 0.9, 0.2); d20.visible = false; d20.castShadow = true; scene.add(d20);
 const fit = (h, w) => { const t = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max(h / t, w / (t * camera.aspect)); };   // how far back to stand to see h by w metres
@@ -454,7 +462,7 @@ const SPOTS = {
 let spot = null, fly = null;
 const ray = new THREE.Raycaster();
 ray.params.Line.threshold = 0.005;   // a line (the tank's edges, the guitar's strings) is hit only on it; three.js's default reaches a metre around it
-let picked = null;   // the very thing the last hit landed on: which can, which paper, which magazine
+let picked = null, hitAt = Infinity;   // the very thing the last hit landed on: which can, which paper, which magazine; and how far off it is
 const hit = e => {   // the nearest clickable thing under the pointer
   ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, 1 - e.clientY / innerHeight * 2), camera);
   let best = null, near = Infinity;
@@ -462,11 +470,15 @@ const hit = e => {   // the nearest clickable thing under the pointer
     const h = ray.intersectObjects([s.mesh].flat())[0];
     if (h && h.distance < near) { near = h.distance; best = k; picked = h.object; }
   }
+  hitAt = near;
   return best;
 };
-renderer.domElement.addEventListener('pointermove', e => { const k = hit(e); renderer.domElement.style.cursor = (k && (!spot || SPOTS[k] === spot && spot.click)) || (!spot && game.pick(ray.ray)) ? 'pointer' : ''; });
+renderer.domElement.addEventListener('pointermove', e => {
+  const k = hit(e), cloth = !spot && clothes.under(e) < hitAt;
+  renderer.domElement.style.cursor = clothes.holding ? 'grabbing' : cloth ? 'grab' : (k && (!spot || SPOTS[k] === spot && spot.click)) || (!spot && game.pick(ray.ray)) ? 'pointer' : '';
+});
 renderer.domElement.addEventListener('click', e => {   // a spot can take the click for itself, and a thing with a menu asks first
-  if (drag.moved > 12) return;
+  if (drag.moved > 12 || drag.cloth) return;
   if (held) return void putDown();   // holding a trophy, a click puts it down
   const k = hit(e);
   if (spot?.click?.()) return;
@@ -564,6 +576,7 @@ renderer.setAnimationLoop(() => {
   camera.updateMatrixWorld();
   if (spot && !fly) spot.place?.();
   hold(t);
+  clothes.tick();
   game.tick(t);
   room.tick(t);
   props.tick(t);

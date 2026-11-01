@@ -1,7 +1,8 @@
 // The laundry pile's cloth: the weave and the details of each piece, its thickness, and the shadows in its folds.
 // Where each piece lies comes from pile.js, dropped offline into assets/laundry.bin.
 import * as THREE from 'three';
-import { C, RES, PIECES, sheet, heightField } from './pile.js';
+import { PIECES, sheet, heightField } from './pile.js';
+import { ROOM } from './room.js';
 
 // painting helpers, in pattern metres
 const STITCH = [0.004, 0.0022];
@@ -122,8 +123,9 @@ function texture(p, b) {
   x.putImageData(d, 0, 0);
   for (const side of [0, 1]) {
     x.save(); x.beginPath(); x.rect(side * pw, 0, pw, ph); x.clip();
+    if (p.photo && !side) { x.drawImage(p.photo, ...p.photoRect, 0, 0, pw, ph); x.restore(); continue; }   // its own photo, laid flat, is the front
     x.setTransform(side ? -ppm : ppm, 0, 0, -ppm, side ? pw + b.x1 * ppm : -b.x0 * ppm, b.y1 * ppm);
-    PAINT[p.look](x, side, b);
+    PAINT[p.look]?.(x, side, b);
     for (let k = 0; k < (b.x1 - b.x0) * (b.y1 - b.y0) * 160; k++) {   // creases pressed into it, each a dark line with a light one beside it
       const cx = b.x0 + Math.random() * (b.x1 - b.x0), cy = b.y0 + Math.random() * (b.y1 - b.y0), a = Math.random() * Math.PI, l = 0.03 + Math.random() * 0.12, bend = (Math.random() - 0.5) * 0.04;
       for (const [o, ink] of [[0, 'rgba(0,0,0,0.07)'], [0.0025, 'rgba(255,255,255,0.05)']]) {
@@ -137,30 +139,17 @@ function texture(p, b) {
   return t;
 }
 
-// the cloth with its thickness: a top and a bottom offset from the simulated sheet, joined round the edge by a rolled hem
-function garment(p, s, pos, field) {
-  const sim = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(pos, 3)).setIndex(new THREE.BufferAttribute(s.tris, 1));
-  sim.computeVertexNormals();
-  const n = s.n, nr = sim.attributes.normal.array, out = new Float32Array(3 * n), edge = new Uint8Array(n), T = p.thick / 2, b = s.bounds;
-  for (let e = 0; e < s.rim.length; e += 4) for (const [v, w] of [[s.rim[e], s.rim[e + 3]], [s.rim[e + 1], s.rim[e + 2]]]) { edge[v] = 1; for (let k = 0; k < 3; k++) out[3 * v + k] += pos[3 * v + k] - pos[3 * w + k]; }
-  const ring = new Int32Array(n).fill(-1); let m = 0;
-  for (let i = 0; i < n; i++) if (edge[i]) {
-    const o = new THREE.Vector3().fromArray(out, 3 * i), nn = new THREE.Vector3().fromArray(nr, 3 * i);
-    o.addScaledVector(nn, -o.dot(nn)).normalize().toArray(out, 3 * i); ring[i] = 2 * n + m++;
-  }
-  const V = 2 * n + m, xyz = new Float32Array(3 * V), uv = new Float32Array(2 * V), col = new Float32Array(3 * V);
+// the cloth with its thickness: a top and a bottom offset from the simulated sheet, joined round the edge by a rolled hem. update(pos)
+// moves it to a new shape; with a field it also works out again how dark its folds are
+export function garment(p, s, pos, field) {
+  const n = s.n, T = p.thick / 2, b = s.bounds, edge = new Uint8Array(n), ring = new Int32Array(n).fill(-1);
+  for (let e = 0; e < s.rim.length; e += 4) { edge[s.rim[e]] = 1; edge[s.rim[e + 1]] = 1; }
+  let m = 0; for (let i = 0; i < n; i++) if (edge[i]) ring[i] = 2 * n + m++;
+  const V = 2 * n + m, xyz = new Float32Array(3 * V), uv = new Float32Array(2 * V), col = new Float32Array(3 * V).fill(1), hole = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
     const fu = (s.P[2 * i] - b.x0) / (b.x1 - b.x0) / 2, bu = 0.5 + (b.x1 - s.P[2 * i]) / (b.x1 - b.x0) / 2, fv = (s.P[2 * i + 1] - b.y0) / (b.y1 - b.y0);
-    const ao = occlusion(field, pos[3 * i], pos[3 * i + 1] + T, pos[3 * i + 2]);
-    for (const [slot, sign, u, shade] of [[i, 1, fu, ao], [n + i, -1, bu, ao * 0.7]]) {
-      for (let k = 0; k < 3; k++) { xyz[3 * slot + k] = pos[3 * i + k] + sign * T * nr[3 * i + k]; col[3 * slot + k] = shade; }
-      uv[2 * slot] = u; uv[2 * slot + 1] = fv;
-    }
-    if (ring[i] >= 0) {
-      const hole = p.open?.(s.P[2 * i], s.P[2 * i + 1]);
-      for (let k = 0; k < 3; k++) { xyz[3 * ring[i] + k] = pos[3 * i + k] + T * (hole ? 0.2 : 0.6) * out[3 * i + k]; col[3 * ring[i] + k] = hole ? 0.08 : ao; }
-      uv[2 * ring[i]] = fu; uv[2 * ring[i] + 1] = fv;
-    }
+    uv[2 * i] = fu; uv[2 * i + 1] = fv; uv[2 * (n + i)] = bu; uv[2 * (n + i) + 1] = fv;
+    if (ring[i] >= 0) { uv[2 * ring[i]] = fu; uv[2 * ring[i] + 1] = fv; hole[i] = p.open?.(s.P[2 * i], s.P[2 * i + 1]) ? 1 : 0; }
   }
   const idx = [...s.tris];
   for (let t = 0; t < s.tris.length; t += 3) idx.push(n + s.tris[t + 2], n + s.tris[t + 1], n + s.tris[t]);
@@ -168,12 +157,32 @@ function garment(p, s, pos, field) {
     const a = s.rim[e], c = s.rim[e + 1], ma = ring[a], mc = ring[c];
     idx.push(a, ma, mc, a, mc, c, ma, n + a, n + c, ma, n + c, mc);
   }
+  const sim = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * n), 3)).setIndex(new THREE.BufferAttribute(s.tris, 1));
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(xyz, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  geo.setIndex(idx); geo.computeVertexNormals();
+  geo.setAttribute('position', new THREE.BufferAttribute(xyz, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
+  function update(pos, field) {
+    sim.attributes.position.array.set(pos); sim.attributes.position.needsUpdate = true; sim.computeVertexNormals();
+    const nr = sim.attributes.normal.array, out = new Float32Array(3 * n);
+    for (let e = 0; e < s.rim.length; e += 4) for (const [v, w] of [[s.rim[e], s.rim[e + 3]], [s.rim[e + 1], s.rim[e + 2]]]) for (let k = 0; k < 3; k++) out[3 * v + k] += pos[3 * v + k] - pos[3 * w + k];
+    const o = new THREE.Vector3(), nn = new THREE.Vector3();
+    for (let i = 0; i < n; i++) {
+      const ao = field ? occlusion(field, pos[3 * i], pos[3 * i + 1] + T, pos[3 * i + 2]) : 0;
+      for (const [slot, sign, shade] of [[i, 1, ao], [n + i, -1, ao * 0.7]]) {
+        for (let k = 0; k < 3; k++) { xyz[3 * slot + k] = pos[3 * i + k] + sign * T * nr[3 * i + k]; if (field) col[3 * slot + k] = shade; }
+      }
+      if (ring[i] >= 0) {
+        o.fromArray(out, 3 * i); nn.fromArray(nr, 3 * i); o.addScaledVector(nn, -o.dot(nn)).normalize();
+        for (let k = 0; k < 3; k++) { xyz[3 * ring[i] + k] = pos[3 * i + k] + T * (hole[i] ? 0.2 : 0.6) * o.getComponent(k); if (field) col[3 * ring[i] + k] = hole[i] ? 0.08 : ao; }
+      }
+    }
+    geo.attributes.position.needsUpdate = true; if (field) geo.attributes.color.needsUpdate = true;
+    geo.computeVertexNormals(); geo.computeBoundingSphere(); geo.computeBoundingBox();
+  }
+  update(pos, field);
   const map = texture(p, b);
   const mesh = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map, bumpMap: map, bumpScale: 3, vertexColors: true, roughness: 0.92, sheen: 1, sheenRoughness: 0.5, sheenColor: new THREE.Color(p.base).lerp(new THREE.Color('#ffffff'), 0.15) }));
   mesh.castShadow = mesh.receiveShadow = true;
+  Object.assign(mesh.userData, { piece: p, sheet: s, pos: pos.slice(), update });
   return mesh;
 }
 
@@ -184,15 +193,19 @@ function occlusion(field, x, y, z) {
   return 1 - 0.9 * o / 24;
 }
 
-// a soft shadow on the carpet round the pile, where the room light can't reach under the cloth
-function contactShadow(field) {
-  const n = field.n, a = Object.assign(document.createElement('canvas'), { width: n, height: n }), d = a.getContext('2d').createImageData(n, n);
-  for (let k = 0; k < n * n; k++) { d.data[4 * k] = d.data[4 * k + 1] = d.data[4 * k + 2] = field.h[k] > 0 ? 255 : 0; d.data[4 * k + 3] = 255; }
-  a.getContext('2d').putImageData(d, 0, 0);
-  const c = Object.assign(document.createElement('canvas'), { width: n, height: n }), x = c.getContext('2d');
-  x.filter = 'blur(3px)'; x.drawImage(a, 0, 0);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(n * RES, n * RES), new THREE.MeshBasicMaterial({ color: '#000', alphaMap: new THREE.CanvasTexture(c), transparent: true, opacity: 0.45, depthWrite: false }));
-  m.position.set(C[0], 0.0015, C[1]); m.rotation.x = -Math.PI / 2;
+// a soft shadow on the carpet under the cloth that lies on it, where the room light can't reach: one pixel for each centimetre of the room.
+// draw() puts it again under each piece that lies still
+function contactShadow(pieces) {
+  const w = Math.round((ROOM.x1 - ROOM.x0) * 100), d = Math.round((ROOM.z1 - ROOM.z0) * 100);
+  const a = Object.assign(document.createElement('canvas'), { width: w, height: d }), c = Object.assign(document.createElement('canvas'), { width: w, height: d }), ax = a.getContext('2d'), cx = c.getContext('2d'), map = new THREE.CanvasTexture(c);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w / 100, d / 100), new THREE.MeshBasicMaterial({ color: '#000', alphaMap: map, transparent: true, opacity: 0.45, depthWrite: false }));
+  m.position.set((ROOM.x0 + ROOM.x1) / 2, 0.0015, (ROOM.z0 + ROOM.z1) / 2); m.rotation.x = -Math.PI / 2;
+  m.userData.draw = () => {
+    ax.fillStyle = '#000'; ax.fillRect(0, 0, w, d); ax.fillStyle = '#fff';
+    for (const p of pieces) { const pos = p.userData.pos; if (!p.userData.moving) for (let i = 0; i < pos.length; i += 3) if (pos[i + 1] < 0.15) ax.fillRect((pos[i] - ROOM.x0) * 100 - 1.5, (pos[i + 2] - ROOM.z0) * 100 - 1.5, 3, 3); }
+    cx.filter = 'blur(3px)'; cx.drawImage(a, 0, 0); map.needsUpdate = true;
+  };
+  m.userData.draw();
   return m;
 }
 
@@ -204,6 +217,7 @@ export async function laundry(g) {
     field.stamp(pos, s.tris, p.thick / 2);
     return [p, s, pos];
   });
-  for (const [p, s, pos] of landed) g.add(garment(p, s, pos, field));
-  g.add(contactShadow(field));
+  const pieces = landed.map(([p, s, pos]) => g.add(garment(p, s, pos, field)) && g.children.at(-1)), shadow = contactShadow(pieces);
+  g.add(shadow);
+  return { pieces, shadow };   // each piece's mesh keeps its pattern, its sheet, where it lies, and update()
 }

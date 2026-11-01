@@ -558,9 +558,9 @@ function mess(g, top) {
   // outline are a photo of a used one from an eBay listing, so it needs a licence before this is public
   const hoodie = new THREE.MeshStandardMaterial({ map: img('assets/flameboy.jpg'), alphaMap: new THREE.TextureLoader().load('assets/flameboy-mask.png'), alphaTest: 0.5,
     bumpMap: weave, bumpScale: 1.5, roughness: 1, side: THREE.DoubleSide });
-  add(g, drape(0.78, 0.78, 0.46, 4.1), hoodie, -1.0, 0.972, -0.805, [0.18, 0, 0]);
+  const flameboy = add(g, drape(0.78, 0.78, 0.46, 4.1), hoodie, -1.0, 0.972, -0.805, [0.18, 0, 0]);
   dishes(g, top);
-  return { demo, bag, pizza, mags, papers, cans };
+  return { demo, bag, pizza, mags, papers, cans, flameboy };
 }
 
 const loader = new GLTFLoader();
@@ -717,7 +717,7 @@ export async function buildProps(scene) {
   poster(g, img('assets/posters/tupac.jpg'), 0.6, 0.8, -1.05, 1.66, -1.995, 0, 0.025);   // David LaChapelle's 1996 photo; needs a licence before this is public
   const news = framedStory(g, -1.799, 1.5, -0.5);
   const basket = hoop(g, -0.42, 1.62);
-  await laundry(g);
+  const pile = await laundry(g);
   poster(g, img('assets/posters/nirvana.jpg'), 0.58, 0.91, 1.795, 1.6, -1.0, -Math.PI / 2, 0.02);   // over the bed; a licensed band photo, so it needs a licence before this is public
   crucifix(g, 1.798, 1.42, -1.62);
   framedDollar(g, 1.8, 1.5, -0.38);
@@ -738,7 +738,7 @@ export async function buildProps(scene) {
     m.material = m.material.clone(); m.material.map = map.clone(); m.material.map.image = c; m.material.map.needsUpdate = true; m.material.color.set('#2d63c4');
   });
   fillShelves(g, shelf);
-  const { demo, bag, pizza, mags, papers, cans } = mess(g, top);
+  const { demo, bag, pizza, mags, papers, cans, flameboy } = mess(g, top);
   const dTop = dresser.box.max.y, dz = -0.5, dx = dresser.box.max.x - 0.24;
   hifi(g, dx + 0.02, dTop, dz + 0.01, Math.PI / 2);
   cans.push(can(g, dx + 0.05, dTop + 0.283, dz - 0.04, { rotY: 2 }));   // on top of the CD changer
@@ -754,5 +754,5 @@ export async function buildProps(scene) {
   const deck = await muskaDeck(g);
   trophy(g, dx - 0.06, shelf.box.max.y, (shelf.box.min.z + shelf.box.max.z) / 2, 0.22, 'figure');
   const mist = humidifier(g, -1.05, 1.82);
-  return { screen, tick: t => { tank.tick(t); mist(t); pizza.tick(t); }, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news, bag, pizza, mags, papers, cans, crush, trophies };
+  return { screen, tick: t => { tank.tick(t); mist(t); pizza.tick(t); }, tank, deck, guitar, lamp: lamp.o, hoop: basket, demo, news, bag, pizza, mags, papers, cans, crush, trophies, pile, flameboy };
 }
