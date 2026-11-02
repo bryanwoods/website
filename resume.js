@@ -1,7 +1,8 @@
 // Bryan's resume, from his LinkedIn profile (linkedin.com/in/bryan-woods), for RESUME.doc on the desktop.
 // LinkedIn has no descriptions for the jobs; the lines under Arlo and Rhino are from his own LinkedIn posts.
 // It opens empty in 1998: Bryan types what he wants to do with computers, takes two of them back, and keeps the third as his objective.
-// Then the years fill in the jobs under it, oldest first, and the parts of the wish that came true go yellow.
+// Then the years fill in the jobs under it, oldest first, and the parts of the wish that came true go yellow. Fredonia wears Word 97's
+// Las Vegas Lights, and a click on it climbs out the window and flies there.
 const RESUME = {
   name: 'Bryan Woods',
   place: 'New York, NY',
@@ -28,7 +29,7 @@ function page(esc) {
   return `<h1>${esc(name).toUpperCase()}</h1><div class="place">${esc(place)}</div>
     <h2>OBJECTIVE</h2><p class="wish">${WISH.map(([w, tail]) => `<span>${esc(w)}</span>${tail}`).join('')}</p>
     <h2>EXPERIENCE</h2>${jobs.map(([title, company, dates, where, what]) => `<div class="job" data-year="${dates.match(/\d{4}/)[0]}" data-company="${esc(company)}"><div class="line"><b>${esc(title)}, ${esc(company)}</b><span>${dates}</span></div>${where ? `<i>${esc(where)}</i>` : ''}${what ? `<p>${esc(what)}</p>` : ''}</div>`).join('')}
-    <h2>EDUCATION</h2><div class="job" data-year="${years.slice(0, 4)}"><div class="line"><b>${esc(school)}</b><span>${years}</span></div><i>${esc(field)}</i></div>`;
+    <h2>EDUCATION</h2><div class="job" data-year="${years.slice(0, 4)}"><div class="line"><a class="egg" href="#roof" title="Fall 2003. Fly there."><b>${esc(school)}</b></a><span>${years}</span></div><i>${esc(field)}</i></div>`;
 }
 
 // types it all into sheet; returns finish(), which shows the whole resume at once

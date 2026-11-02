@@ -51,11 +51,13 @@ const ROOMS = {
     start: [9, 12, 'up'],
     enter: [['', '* (A tavern. It smells like woodsmoke and blueberries.)']],
   },
-  dungeon: {   // Tadzio's dungeon, room one: a block, a switch, and a locked door, as in Zelda
-    map: ['####################', '####################', '#########dd#########', ...Array(11).fill('#..................#'), '#########..#########'],
+  dungeon: {   // Tadzio's dungeon, room one: a block, a switch in a nook of pillars (P), and a locked door, as in Zelda. The block can only go
+    // into the nook from below, and the pillar under the nook leaves no room to push it from two rows down: it has to come in a row higher
+    map: ['####################', '####################', '#########dd#########', '#..................#', '#...P..............#', '#....P.............#',
+      '#..................#', '#..................#', '#...P..............#', ...Array(5).fill('#..................#'), '#########..#########'],
     start: [9, 13, 'up'], style: 'stone',
-    enter: [['tadzio', 'Welcome to my dungeon! Every good dungeon starts with a puzzle.', 'smile'], ['tadzio', 'See the stone block? Walk into it to push it.', 'smile'],
-      ['tadzio', 'Push it onto the switch in the floor, and the door at the top opens.', 'smile'], ['tadzio', 'Stuck? Face me and press Z for a hint.', 'smile']],
+    enter: [['tadzio', 'Welcome to my dungeon! Every good dungeon starts with a puzzle.', 'smile'], ['tadzio', 'The door only opens for something heavy.', 'smile'],
+      ['tadzio', 'Stuck? Face me and press Z for a hint.', 'smile']],
   },
   court: { map: Array(15).fill('.'.repeat(20)), tennis: true, start: [10, 12, 'up'] },   // room two: tennis
   lair: {   // room three: the boss
@@ -65,7 +67,8 @@ const ROOMS = {
   },
   hill: { map: Array.from({ length: 15 }, () => '.'.repeat(20)), start: [8, 10, 'right'], dark: true, sky: true },   // the end: a hilltop under the moon
 };
-const solid = (room, x, y) => { const c = room.map[y]?.[x]; return !c || '#tTFDB'.includes(c); };
+const solid = (room, x, y) => { const c = room.map[y]?.[x]; return !c || '#tTFDBP'.includes(c); };
+const SWITCH = [4, 5], BLOCK = [12, 9];   // in the dungeon
 
 // ---- the sprites, drawn with rectangles: every part outlined first, then filled, so the whole kid gets one dark edge
 function kid(g, look, x, y, dir, step, pose) {
@@ -176,10 +179,12 @@ const CSS = `
 
 export function dreamgame({ audio, done }) {
   let root, cv, g, raf = 0, keys = {}, room, me, trail = [], party = false, talk = null, last = 0, flies = [], ending = false, roll = null, held = false;
-  let mode = 'walk', block = null, push = 0, ten = null, bat = null, help = '';
+  let mode = 'walk', block = null, push = 0, ten = null, bat = null, help = '', hints = 0;
   const HINTS = {
     tavern: () => 'The dungeon starts through the door at the bottom.',
-    dungeon: () => (room.open ? 'The door is open! Up at the top.' : 'Walk into the block to push it. Get it onto the switch, and the door opens. Jammed? Press Z on the block.'),
+    dungeon: () => (room.open ? 'The door is open! Up at the top.' : [   // a little more each time you ask
+      'Something heavy has to sit on the switch in the corner.', "Walk into the stone block to push it. You can push, but you can't pull.",
+      'The pillar under the switch is in the way. Bring the block in a row higher.', 'Jammed? Press Z on the block, and it goes back where it started.'][Math.min(hints++, 3)]),
     lair: () => 'Go say hi to the bear. Walk right up to it and press Z.',
   };
   function goal() {   // what to do now, and with which keys, for the bar at the top of the screen
@@ -188,7 +193,7 @@ export function dreamgame({ audio, done }) {
     if (mode === 'battle') return { menu: bat.mercy >= 100 ? '<b>Choose SPARE.</b><kbd>←</kbd><kbd>→</kbd> pick · <kbd>Z</kbd> choose' : "<b>FIGHT won't work. Try ACT.</b><kbd>←</kbd><kbd>→</kbd> pick · <kbd>Z</kbd> choose", act: '<b>Pick something to do.</b><kbd>↑</kbd><kbd>↓</kbd> pick · <kbd>Z</kbd> choose · <kbd>X</kbd> back', dodge: '<b>Dodge the stuffing with your heart.</b><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move' }[bat.phase] || '';
     if (room.tennis) return '<b>Stand under the ball and swing as it comes down.</b><kbd>←</kbd><kbd>→</kbd> move · <kbd>Z</kbd> swing';
     const what = { field: 'Walk up to the door and press Z.', tavern: party ? 'Leave by the door at the bottom.' : 'Walk up to the kid at the table and press Z.',
-      dungeon: room.open ? 'The door is open. Go through it at the top.' : 'Push the stone block onto the floor switch.', lair: 'Walk up to the bear and press Z.' }[room.name];
+      dungeon: room.open ? 'The door is open. Go through it at the top.' : 'Open the door at the top.', lair: 'Walk up to the bear and press Z.' }[room.name];
     return `<b>${what}</b><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk · <kbd>Z</kbd> look, talk${party ? ' · <kbd>Z</kbd> facing Tadzio: hint' : ''}`;
   }
   const blocked = (x, y) => solid(room, x, y) || (room.name === 'dungeon' && ((block.x === x && block.y === y) || (!room.open && room.map[y]?.[x] === 'd')));
@@ -218,7 +223,7 @@ export function dreamgame({ audio, done }) {
       room = ROOMS[name]; room.name = name; const [x, y, dir] = at || room.start;
       me = { x: x * T + 8, y: y * T + 14, dir, step: 0, walk: 0 }; trail = Array.from({ length: 24 }, () => ({ x: me.x, y: me.y - 2, dir }));
       f.style.opacity = 0;
-      if (name === 'dungeon') { block = { x: 6, y: 6 }; room.open = false; }
+      if (name === 'dungeon') { block = { x: BLOCK[0], y: BLOCK[1] }; room.open = false; }
       if (room.tennis) ten = { rally: 0, misses: 0, tz: 160, ball: null };
       if (room.enter && !room.seen) { room.seen = true; setTimeout(() => say(room.enter), 500); }
       if (room.tennis) setTimeout(() => say([['tadzio', 'Room two. Tennis. I always win.', 'smile'], ['tadzio', 'Left and right to move. Z to swing.', 'smile']], serve), 500);
@@ -227,7 +232,7 @@ export function dreamgame({ audio, done }) {
   function act() {   // Z: look at, or talk to, whatever is on the tile in front of you
     if (talk) return next();
     const fx = Math.floor((me.x + { left: -12, right: 12, up: 0, down: 0 }[me.dir]) / T), fy = Math.floor((me.y - 6 + { up: -14, down: 12, left: 0, right: 0 }[me.dir]) / T);
-    if (room.name === 'dungeon' && !room.open && fx === block.x && fy === block.y) return say([['tadzio', 'Stuck? Dungeon Masters allow do-overs.', 'smile']], () => { block = { x: 6, y: 6 }; });   // a block against a wall can never come off it
+    if (room.name === 'dungeon' && !room.open && fx === block.x && fy === block.y) return say([['tadzio', 'Stuck? Dungeon Masters allow do-overs.', 'smile']], () => { block = { x: BLOCK[0], y: BLOCK[1] }; });   // a block against a wall can never come off it
     const f = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[me.dir], vx = trail[0].x - me.x, vy = trail[0].y - me.y, d = Math.hypot(vx, vy);
     if (party && d > 2 && d < 40 && (vx * f[0] + vy * f[1]) > 0.7 * d) return say([['tadzio', HINTS[room.name]?.() ?? 'Keep going. You are doing great.', 'smile']]);   // Tadzio, a step behind you, has a hint
     const s = SPOTS[room.name][`${fx},${fy}`] || SPOTS[room.name][`${Math.floor(me.x / T)},${Math.floor((me.y - 6) / T)}`];
@@ -246,7 +251,7 @@ export function dreamgame({ audio, done }) {
     say([['tadzio', 'Nice! I knew you would get it.', 'smile'], ['tadzio', '...Eventually.', 'unsure']]);
   }
   function dungeon(t) {   // the switch, the torches, and (in depth order, below) the block
-    g.fillStyle = INK; g.fillRect(13 * T + 1, 9 * T + 1, 14, 14); g.fillStyle = room.open ? '#7a86b0' : '#5a6078'; g.fillRect(13 * T + 2, 9 * T + 2, 12, 12);
+    const [sx, sy] = SWITCH; g.fillStyle = INK; g.fillRect(sx * T + 1, sy * T + 1, 14, 14); g.fillStyle = room.open ? '#7a86b0' : '#5a6078'; g.fillRect(sx * T + 2, sy * T + 2, 12, 12);
     for (const tx of [4, 15]) { g.fillStyle = '#5a4630'; g.fillRect(tx * T + 6, 2 * T + 4, 4, 9); for (let i = 0; i < 3; i++) { g.fillStyle = i % 2 ? '#f2a03a' : '#ffd36a'; g.fillRect(tx * T + 5 + i * 2, 2 * T + 2 - Math.abs(Math.sin(t * 8 + i)) * 4, 2, 4); } }
   }
   function stone() {
@@ -454,6 +459,7 @@ export function dreamgame({ audio, done }) {
     const px = x * T, py = y * T;
     if (room.style === 'stone') {   // grey-blue flagstones, block walls, and a barred door that opens
       if (c === '#') { g.fillStyle = y < 3 ? '#262a3a' : '#151722'; g.fillRect(px, py, T, T); if (y < 3) { g.fillStyle = '#1b1e2b'; g.fillRect(px, py + (x % 2 ? 7 : 15), T, 1); g.fillRect(px + (y % 2 ? 4 : 12), py, 1, T); } return; }
+      if (c === 'P') { g.fillStyle = '#363c51'; g.fillRect(px, py, T, T); g.fillStyle = INK; g.fillRect(px + 1, py - 7, T - 2, T + 6); g.fillStyle = '#4a5068'; g.fillRect(px + 2, py - 6, T - 4, T + 4); g.fillStyle = '#626a88'; g.fillRect(px + 2, py - 6, T - 4, 4); g.fillStyle = '#3c4157'; g.fillRect(px + 2, py + 2, T - 4, 1); return; }   // a stone pillar
       if (c === 'd') { g.fillStyle = room.open ? '#05050a' : '#4a3a2a'; g.fillRect(px, py, T, T); if (!room.open) { g.fillStyle = '#22242e'; for (let i = 2; i < T; i += 4) g.fillRect(px + i, py, 2, T); } return; }
       g.fillStyle = (x + y) % 2 ? '#3b4157' : '#363c51'; g.fillRect(px, py, T, T); g.fillStyle = '#2e3346'; g.fillRect(px, py, T, 1); g.fillRect(px, py, 1, T); return;
     }
@@ -509,7 +515,7 @@ export function dreamgame({ audio, done }) {
         const ax = Math.floor((me.x + dx * 9) / T), ay = Math.floor((me.y - 4 + dy * 9) / T);
         if (ax === block.x && ay === block.y && (push += dt) > 0.3) {
           push = 0; const bx = block.x + dx, by = block.y + dy;
-          if (!blocked(bx, by) && room.map[by][bx] === '.') { block.x = bx; block.y = by; note(110, 0, 0.12, 'triangle', 0.08); if (bx === 13 && by === 9) solved(); }
+          if (!blocked(bx, by) && room.map[by][bx] === '.') { block.x = bx; block.y = by; note(110, 0, 0.12, 'triangle', 0.08); if (bx === SWITCH[0] && by === SWITCH[1]) solved(); }
         } else if (ax !== block.x || ay !== block.y) push = 0;
       }
       me.walk += dt; me.step = Math.floor(me.walk * 6);

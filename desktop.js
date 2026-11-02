@@ -106,6 +106,8 @@ const CSS = `
   .sheet .job { margin-bottom: 7px; } .sheet .line { display: flex; justify-content: space-between; gap: 10px; } .sheet .line span { flex: none; white-space: nowrap; } .sheet i { color: #333; } .sheet p { margin: 2px 0 0; }
   .word .status-bar { margin: 3px 1px 0; }
   .sheet .caret { border-left: 1px solid; animation: caret 1.06s steps(1) infinite; } @keyframes caret { 50% { border-color: transparent; } } .sheet .lit { background: #ff0; }
+  .sheet .egg { padding: 2px; color: inherit; text-decoration: none; background: repeating-linear-gradient(90deg, #f00 0 4px, #ff0 4px 8px, #0b0 8px 12px, #00f 12px 16px) 0 0 / 16px 100%; animation: vegas .5s steps(4) infinite, glow 1.2s ease-in-out infinite alternate; }
+  .sheet .egg b { padding: 0 3px; background: #fff; } @keyframes vegas { to { background-position: 16px 0; } } @keyframes glow { from { box-shadow: 0 0 2px #ffe95c; } to { box-shadow: 0 0 9px 3px #ffd800; } }   /* Format > Font > Animation > Las Vegas Lights */
   .snood .window-body { display: flex; gap: 8px; margin: 4px; }
   .snood .well { padding: 2px; ${SUNK}; } .snood canvas { display: block; width: 288px; height: 368px; touch-action: none; }
   .scores { width: 270px; } .scores select { margin-bottom: 6px; } .scores .sunken-panel { height: 210px; } .scores table { width: 100%; } .scores td:nth-child(3) { text-align: right; }
