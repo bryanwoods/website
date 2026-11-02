@@ -257,8 +257,50 @@ const noTeeth = winamp({ audio: 'assets/conformity/no-teeth.mp3', title: 'CONFOR
 const band = winamp({ video: 'RUUP4kkl6Z0', title: 'FACE DOWN IN MEXICO CITY WITH AN ICE PICK IN THE BACK - SHANGHAI THE SAILOR', side: 'right', onClose: back });   // Bryan's college band
 const offroad = jimmy({ audio: () => ac, exit: back }), dreamer = tadzio({ audio: () => ac });
 const clothes = wardrobe({ scene, camera, renderer, pile: props.pile, chair: props.flameboy });
-const d20 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.024), new THREE.MeshStandardMaterial({ color: '#c62f2f', roughness: 0.35, flatShading: true }));   // the die from the dream
-d20.position.set(1.36, 0.69, -1.66); d20.rotation.set(0.4, 0.9, 0.2); d20.visible = false; d20.castShadow = true; scene.add(d20);
+// the die from the dream, numbered like a real one: opposite faces add up to 21
+const d20 = (() => {
+  const geo = new THREE.IcosahedronGeometry(0.024), p = geo.attributes.position, uv = geo.attributes.uv, normals = [], faces = [], v = i => new THREE.Vector3().fromBufferAttribute(p, i);
+  for (let f = 0; f < 20; f++) normals.push(v(3 * f).add(v(3 * f + 1)).add(v(3 * f + 2)).normalize());
+  for (let f = 0, k = 1; f < 20; f++) if (!faces[f]) { faces[f] = k; faces[normals.findIndex(m => m.dot(normals[f]) < -0.99)] = 21 - k++; }
+  const c = Object.assign(document.createElement('canvas'), { width: 512, height: 512 }), x = c.getContext('2d');
+  x.fillStyle = '#c62f2f'; x.fillRect(0, 0, 512, 512); x.fillStyle = '#fff'; x.font = 'bold 30px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  faces.forEach((k, f) => {   // each face's triangle in its own cell of a 5 by 4 grid, with its number in the middle; a dot tells 6 from 9
+    const cx = ((k - 1) % 5 + 0.5) * 102.4, cy = (Math.floor((k - 1) / 5) + 0.5) * 128;
+    [[cx, cy - 55], [cx - 48, cy + 28], [cx + 48, cy + 28]].forEach(([a, b], j) => uv.setXY(3 * f + j, a / 512, 1 - b / 512));
+    x.fillText(k === 6 || k === 9 ? `${k}.` : String(k), cx, cy + 2);
+  });
+  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
+  return Object.assign(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map, roughness: 0.35, flatShading: true })), { userData: { faces, normals } });
+})();
+const lie = (k, yaw) => new THREE.Quaternion().setFromUnitVectors(d20.userData.normals[d20.userData.faces.indexOf(k)], UP).premultiply(new THREE.Quaternion().setFromAxisAngle(UP, yaw));   // k up
+d20.position.set(1.36, 0.684, -1.66); d20.quaternion.copy(lie(20, 0.9)); d20.visible = false; d20.castShadow = true; scene.add(d20);
+let toss = null;   // the die picked up off the pillow, shaken, and thrown down onto the bed
+function roll() {
+  if (toss) return;
+  const k = 1 + Math.floor(Math.random() * 20), to = new THREE.Vector3(1.36 + (Math.random() - 0.5) * 0.16, 2, -1.62 + (Math.random() - 0.5) * 0.16), down = new THREE.Raycaster(to, new THREE.Vector3(0, -1, 0));
+  down.camera = camera;
+  const hit = down.intersectObject(scene, true).find(h => h.object.isMesh && h.object !== d20 && h.object.material.visible !== false);
+  to.y = (hit?.point.y ?? 0.62) + 0.019;   // resting on a face: the middle of the die is 1.9 cm up
+  toss = { t0: clock.getElapsedTime(), from: d20.position.clone(), q0: d20.quaternion.clone(), to, end: lie(k, Math.random() * 6.28), axis: new THREE.Vector3().randomDirection(), k, clacks: 0 };
+}
+function tumble(t) {   // half a second up in your hand, shaking, then thrown: down onto the bed, two bounces, and still
+  if (!toss) return;
+  const { from, to, axis } = toss, s = t - toss.t0, e = Math.min(1, s / 0.25), up = from.y + 0.12 * e * (2 - e);
+  if (s < 0.5) {
+    d20.position.set(from.x + Math.sin(s * 60) * 0.006 * e, up, from.z);
+    d20.quaternion.copy(toss.q0).multiply(new THREE.Quaternion().setFromAxisAngle(axis, Math.sin(s * 47) * 0.6 * e));
+    toss.q1 = d20.quaternion.clone();
+    return;
+  }
+  const u = Math.min(1, (s - 0.5) / 1.1), w = 1 - (1 - u) ** 2, BOUNCE = [0.4, 0.7, 0.88];
+  const h = u < 0.4 ? (up - to.y) * (1 - (u / 0.4) ** 2) : u < 0.7 ? 0.035 * Math.sin(Math.PI * (u - 0.4) / 0.3) : u < 0.88 ? 0.01 * Math.sin(Math.PI * (u - 0.7) / 0.18) : 0;
+  d20.position.set(from.x + (to.x - from.x) * w, to.y + h, from.z + (to.z - from.z) * w);
+  d20.quaternion.slerpQuaternions(toss.q1, toss.end.clone().multiply(new THREE.Quaternion().setFromAxisAngle(axis, 6 * Math.PI * (1 - u) ** 2)), Math.min(1, u / 0.15));
+  if (u >= BOUNCE[toss.clacks]) { toss.clacks++; sfx('click'); }
+  if (u < 1) return;
+  const k = toss.k; toss = null;
+  say(k === 20 ? 'Natural 20. Again.' : k === 1 ? 'Natural 1.' : `You rolled ${[8, 11, 18].includes(k) ? 'an' : 'a'} ${k}.`, 3000);
+}
 const fit = (h, w) => { const t = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max(h / t, w / (t * camera.aspect)); };   // how far back to stand to see h by w metres
 const SPOTS = {
   computer: {
@@ -375,12 +417,12 @@ const SPOTS = {
   },
   made: { mesh: [], act() { say('lol no.', 2500); } },
   woke: {   // out of the dream into the next morning, looking down at the pillow, where the die from the dream is lying
-    mesh: [], hint: "Morning. There's a red twenty-sided die on your pillow.",
-    view: () => [new THREE.Vector3(1.12, 1.08, -1.3), d20.position.clone()],
+    mesh: [], hint: `Morning. There's a red twenty-sided die on your pillow, 20 up. ${phone ? 'Tap' : 'Click'} it to roll it.`,
+    view: () => [d20.position.clone().add(new THREE.Vector3(-0.17, 0.28, 0.25)), d20.position.clone()],   // near enough to read the number on top
     go() { late = -(clock.getElapsedTime() + AT); called = 2; d20.visible = true; say('Horseheads, NY. The next morning.', 5000); },   // the afternoon light again, as morning
-    click: () => !!ray.intersectObject(d20)[0] && (SPOTS.d20.act(), true),   // a click on the die says what it is; anywhere else, back to the room
+    click: () => !!ray.intersectObject(d20)[0] && (roll(), true),   // a click on the die rolls it; anywhere else, back to the room
   },
-  d20: { mesh: d20, act() { say("A red twenty-sided die. You've never seen it before. It landed on 20.", 5000); } },
+  d20: { mesh: d20, act: roll },
   sleep: {   // lie back, it gets dark, the lamp goes off, the ceiling goes, and under the night sky you dream of Tadzio
     mesh: [], secs: 2.5,
     view: () => [new THREE.Vector3(1.31, 0.8, -1.62), new THREE.Vector3(0.55, 2.45, -1.2)],   // up at the ceiling, over the room, not at the wall beside the bed
@@ -576,6 +618,7 @@ renderer.setAnimationLoop(() => {
   camera.updateMatrixWorld();
   if (spot && !fly) spot.place?.();
   hold(t);
+  tumble(t);
   clothes.tick();
   game.tick(t);
   room.tick(t);

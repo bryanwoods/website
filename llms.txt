@@ -1,0 +1,45 @@
+# Bryan Woods
+
+> Bryan Woods's personal site is a set of 3D rooms from his life that you can walk into and use. The home page is his teenage bedroom in Horseheads, New York, on a June afternoon in 1998. A window in that room leads to his freshman dorm room at SUNY Fredonia in the fall of 2003. Each room is full of things you can click, games you can play, and small secrets.
+
+Each link below opens the room at that place. In the bedroom, the part of the address after `#` is the view, so a link can go straight to the computer or the roof. Press Esc, or click the room, to go back. Turn on SOUND ON (top left) for the sounds and the music. The rooms work on a phone. Turn the phone sideways for the computer. DOOM needs a keyboard.
+
+## The bedroom, Horseheads, 1998
+
+- [The room](https://www.bryanwoods4e.com/): Bryan's bedroom at about 4:47 PM. While you stay, the light goes to dusk and then night: ten of your minutes are three and a half of his hours. Someone calls up the stairs for dinner. Add `?at=12` to start at night.
+- [The computer](https://www.bryanwoods4e.com/#computer): Windows 98 with AIM signed on. Leave an away message for the next visitor, read RESUME.doc, look in the Recycle Bin, play Snood (with high scores) and DOOM, and open Internet Explorer to Bryan's 1999 fan site.
+- [Firenewty's tank](https://www.bryanwoods4e.com/#newt): Bryan's fire-bellied newt. Click the water to drop in a bloodworm.
+- [Inside the tank](https://www.bryanwoods4e.com/#tank): You shrink to the size of a pebble and walk on the gravel next to Firenewty.
+- [The newspaper story](https://www.bryanwoods4e.com/#news): A framed Star-Gazette story from August 2003 about Bryan's high school band. Their song plays in Winamp.
+- [The guitar](https://www.bryanwoods4e.com/#guitar): Bryan's guitar and a demo from his college band, on Winamp.
+- [The skateboard](https://www.bryanwoods4e.com/#muska): A Chad Muska deck on the wall, with his skate video on Winamp.
+- [The hoop](https://www.bryanwoods4e.com/#hoop): A foam basketball hoop on the wall. Drag up and let go to shoot. Click a foam ball on the floor to pick it up.
+- [The trophies](https://www.bryanwoods4e.com/#trophies): Youth soccer trophies on the dresser. Click one to pick it up and turn it.
+- [The beanbag](https://www.bryanwoods4e.com/#bag): Sit on the beanbag and look back across the room.
+- [The pizza](https://www.bryanwoods4e.com/#pizza): Half a Pudgie's pizza at the foot of the bed. Click a square to eat it.
+- [The window](https://www.bryanwoods4e.com/#window): Look out at the backyard. The window's menu also has CLIMB OUT and OFF ROAD.
+- [The porch roof](https://www.bryanwoods4e.com/#roof): CLIMB OUT puts you on the porch roof. You look around, float up over the house, and fly west to SUNY Fredonia over Google's 3D map. The flight ends at the dorm window.
+- [OFF ROAD](https://www.bryanwoods4e.com/#offroad): A cartoon driving game in a friend's dad's GMC Jimmy, on the field behind the house. It has flips, a horn, and a TOP JIMMIERS score list.
+- [Go to sleep](https://www.bryanwoods4e.com/#sleep): Click the bed and pick GO TO SLEEP. The room goes dark, and you dream a small role-playing game about Tadzio, a child who comes into Bryan's life 17 years later. Use the arrow keys or W A S D and Z, or tap on a phone.
+- [The next morning](https://www.bryanwoods4e.com/#woke): You wake up after the dream. Something from the dream is on the pillow. Click it.
+
+Things you use where they are, with no view of their own:
+
+- The laundry pile and the Flameboy hoodie on the desk chair: press and drag a piece. It moves as heavy cloth and stays where you leave it.
+- The Diet Coke cans: click to open one, drink it, and crush it.
+- The magazines on the floor: click one to see its cover.
+- The crumpled papers: click one to smooth it out and read it.
+- The desk lamp: click to turn it on and off.
+- The bed's MAKE THE BED: try it.
+
+## The dorm, SUNY Fredonia, 2003
+
+- [Room 328, Chautauqua Hall](https://www.bryanwoods4e.com/dorm/): Bryan's freshman dorm room in the fall of 2003, with posters, a 2003 Dell, a fridge, and Pepsi cups. The flight from the bedroom roof ends here.
+- THE HALL (the button at the top right): Go out to the door of 328. Draw on the whiteboard with a marker. The next visitor sees what you leave.
+- The desk: Click the desk, then the pack of Kamel Reds, to flip the lucky.
+- The window: Click the window and pick YES for HOME TO HORSEHEADS to go back to the bedroom.
+
+## Optional
+
+- [Sluggish](https://www.bryanwoods4e.com/apps/sluggish/): A Mac menu bar app by Bryan that names why your Mac is slow and gives one safe fix.
+- [Plinth support](https://www.bryanwoods4e.com/apps/plinth/support/): Help for Plinth, Bryan's training log app.

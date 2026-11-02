@@ -411,7 +411,7 @@ export function dreamgame({ audio, done }) {
         [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.11, 0.12)); [523, 659, 784].forEach(f => note(f, 0.5, 1.1, 'triangle', 0.06));   // a little fanfare of our own
         say([['zelda', 'You got a Heart Container!'], ['zelda', 'Your heart feels full. Fuller than it has ever been.']], () => {
           held = false;
-          say([['tadzio', 'See you later, Dada.', 'smile']], () => {
+          say([['tadzio', "You'll meet me one day...", 'smile'], ['tadzio', 'Keep this to remember me until then.', 'smile'], ['tadzio', "...You'll need it.", 'smile'], ['tadzio', 'See you later, Dada.', 'smile']], () => {
             const f = root.querySelector('.fade'); f.style.background = '#fff'; f.style.transition = 'opacity 2.5s'; f.style.opacity = 1;
             setTimeout(() => done?.(), 3200);
           });
