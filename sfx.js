@@ -24,6 +24,12 @@ function creak(ac, out, t0, dur, from, to, gain) {   // a door hinge: a slow buz
 }
 
 export const SFX = {
+  purr(ac, out) {   // a cat: a low rumble, 25 pulses a second, swelling with each breath in and out
+    const len = 3.2, b = ac.createBuffer(1, ac.sampleRate * len, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) { const s = i / ac.sampleRate; d[i] = (Math.random() * 2 - 1) * (0.55 + 0.45 * Math.sin(2 * Math.PI * 25 * s)) * Math.sin(Math.PI * (s % 1.6) / 1.6); }
+    const s = new AudioBufferSourceNode(ac, { buffer: b });
+    s.connect(new BiquadFilterNode(ac, { type: 'lowpass', frequency: 220, Q: 0.7 })).connect(new GainNode(ac, { gain: 0.45 })).connect(out); s.start();
+  },
   modem(ac, out) {   // dial tone, seven digits, the answer tone, the warble and the bong, then the hiss of the two modems training
     const line = new BiquadFilterNode(ac, { type: 'lowpass', frequency: 3400 }), t = ac.currentTime + 0.05; line.connect(out);
     tone(ac, line, 350, t, 0.9, { gain: 0.07 }); tone(ac, line, 440, t, 0.9, { gain: 0.07 });

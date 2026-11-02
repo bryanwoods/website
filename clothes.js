@@ -117,6 +117,10 @@ export function wardrobe({ scene, camera, renderer, pile, chair }) {
   const meshes = () => [...recs.map(c => c.mesh), ...(chair.visible ? [chair] : [])];
 
   return {
+    ground() {   // the room's heights without the laundry, from above and from below: for the cat, who walks over clothes and under desks
+      bottom ??= heights([...recs.map(c => c.mesh), chair, pile.shadow], 9, true);
+      return { high: heights(recs.map(c => c.mesh)), bottom };
+    },
     get holding() { return !!sim?.held; },   // while you carry a piece, your head keeps still
     under(e) { aim(e); return ray.intersectObjects(meshes())[0]?.distance ?? Infinity; },   // how far off the cloth under the pointer is
     grab(e, near) {   // a press on a piece, nearer than anything else you can click, picks it up by the point under the pointer

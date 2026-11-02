@@ -20,6 +20,7 @@ import { buildOutside, SEAT, AIR } from './outside.js';
 import { jimmy } from './jimmy.js';
 import { tadzio } from './tadzio.js';
 import { wardrobe } from './clothes.js';
+import { tigger } from './tigger.js';
 
 const status = document.getElementById('status');
 addEventListener('unhandledrejection', e => { status.textContent = 'Error: ' + (e.reason?.message || e.reason); });
@@ -257,6 +258,7 @@ const noTeeth = winamp({ audio: 'assets/conformity/no-teeth.mp3', title: 'CONFOR
 const band = winamp({ video: 'RUUP4kkl6Z0', title: 'FACE DOWN IN MEXICO CITY WITH AN ICE PICK IN THE BACK - SHANGHAI THE SAILOR', side: 'right', onClose: back });   // Bryan's college band
 const offroad = jimmy({ audio: () => ac, exit: back }), dreamer = tadzio({ audio: () => ac });
 const clothes = wardrobe({ scene, camera, renderer, pile: props.pile, chair: props.flameboy });
+const cat = tigger({ scene, camera, clothes, pile: props.pile, bag: props.bag, sfx });   // Tigger, who comes in now and then to sleep
 // the die from the dream, numbered like a real one: opposite faces add up to 21
 const d20 = (() => {
   const geo = new THREE.IcosahedronGeometry(0.024), p = geo.attributes.position, uv = geo.attributes.uv, normals = [], faces = [], v = i => new THREE.Vector3().fromBufferAttribute(p, i);
@@ -370,6 +372,7 @@ const SPOTS = {
     },
   },
   mags: { mesh: props.mags, act(m) { cover(m.userData.cover, m.userData.title); } },
+  tigger: { get mesh() { return cat.mesh; }, act: cat.pet },   // a click on him and he purrs
   papers: { mesh: props.papers, act(p) { paper(RECYCLED.find(r => r.name === p.userData.note).text, p.geometry.type !== 'PlaneGeometry'); } },   // smoothed out, if it was balled up
   window: {   // standing at the window, looking out at the yard
     mesh: (() => { const m = new THREE.Mesh(new THREE.BoxGeometry(WINDOW.x1 - WINDOW.x0, WINDOW.y1 - WINDOW.y0, 0.06), new THREE.MeshBasicMaterial({ visible: false })); m.position.copy(WINDOW.center).setZ(WINDOW.z + 0.05); scene.add(m); return m; })(),
@@ -620,6 +623,7 @@ renderer.setAnimationLoop(() => {
   hold(t);
   tumble(t);
   clothes.tick();
+  cat.tick(t);
   game.tick(t);
   room.tick(t);
   props.tick(t);
