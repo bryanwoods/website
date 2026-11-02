@@ -2,7 +2,7 @@
 // in its own shadow root so 98.css styles nothing else on the page. 640 by 480, the way the monitor was set.
 import { ME, BUDDIES, listOf, on } from './buddies.js';
 import { RECYCLED } from './recycled.js';
-import { RESUME } from './resume.js';
+import { write } from './resume.js';
 import { snood } from './snood.js';
 import { doom } from './doom.js';
 import { ie } from './ie.js';
@@ -105,6 +105,7 @@ const CSS = `
   .sheet h2 { margin: 14px 0 6px; font-size: 12px; letter-spacing: 1px; border-bottom: 1px solid; }
   .sheet .job { margin-bottom: 7px; } .sheet .line { display: flex; justify-content: space-between; gap: 10px; } .sheet .line span { flex: none; white-space: nowrap; } .sheet i { color: #333; } .sheet p { margin: 2px 0 0; }
   .word .status-bar { margin: 3px 1px 0; }
+  .sheet .caret { border-left: 1px solid; animation: caret 1.06s steps(1) infinite; } @keyframes caret { 50% { border-color: transparent; } } .sheet .lit { background: #ff0; }
   .snood .window-body { display: flex; gap: 8px; margin: 4px; }
   .snood .well { padding: 2px; ${SUNK}; } .snood canvas { display: block; width: 288px; height: 368px; touch-action: none; }
   .scores { width: 270px; } .scores select { margin-bottom: 6px; } .scores .sunken-panel { height: 210px; } .scores table { width: 100%; } .scores td:nth-child(3) { text-align: right; }
@@ -326,14 +327,12 @@ export function desktop(sfx) {
   let doc;
   screen.querySelector('[data-icon="RESUME.doc"]').ondblclick = () => {
     if (doc?.isConnected) { doc.hidden = false; return front(doc); }
-    const { name, place, jobs, school: [school, field, years] } = RESUME;
     doc = open('Microsoft Word - RESUME.doc', 'word', 14, 6, `${menu('File', 'Edit', 'View', 'Insert', 'Format', 'Tools', 'Table', 'Window', 'Help')}
       <div class="fmt"><select><option>Normal</option></select><select><option>Times New Roman</option></select><select><option>12</option></select><button><b>B</b></button><button><i>I</i></button><button><u>U</u></button></div>
       <div class="ruler"></div>
-      <div class="doc"><div class="sheet"><h1>${esc(name).toUpperCase()}</h1><div class="place">${esc(place)}</div>
-        <h2>EXPERIENCE</h2>${jobs.map(([title, company, dates, where, what]) => `<div class="job"><div class="line"><b>${esc(title)}, ${esc(company)}</b><span>${dates}</span></div>${where ? `<i>${esc(where)}</i>` : ''}${what ? `<p>${esc(what)}</p>` : ''}</div>`).join('')}
-        <h2>EDUCATION</h2><div class="job"><div class="line"><b>${esc(school)}</b><span>${years}</span></div><i>${esc(field)}</i></div></div></div>
+      <div class="doc"><div class="sheet"></div></div>
       <div class="status-bar">${['Page 1', 'Sec 1', '1/1', 'At 1"', 'Ln 1', 'Col 1'].map(s => `<p class="status-bar-field">${s}</p>`).join('')}</div>`, DOC);
+    doc.querySelector('.doc').addEventListener('pointerdown', write(doc.querySelector('.sheet'), esc), { once: true });   // a click shows the rest at once
   };
 
   let game;
