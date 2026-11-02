@@ -37,6 +37,7 @@ Things you use where they are, with no view of their own:
 - [Room 328, Chautauqua Hall](https://www.bryanwoods4e.com/dorm/): Bryan's freshman dorm room in the fall of 2003, with posters, a 2003 Dell, a fridge, and Pepsi cups. The flight from the bedroom roof ends here.
 - THE HALL (the button at the top right): Go out to the door of 328. Draw on the whiteboard with a marker. The next visitor sees what you leave.
 - The desk: Click the desk, then the pack of Kamel Reds, to flip the lucky.
+- The mini fridge: Click it to crouch down and open it. Click a forty to play Edward Fortyhands: a forty taped to each hand, the caps popped off, hold left or right to drink, and empty both before your bladder gives out or the RA knocks.
 - The window: Click the window and pick YES for HOME TO HORSEHEADS to go back to the bedroom.
 
 ## Optional

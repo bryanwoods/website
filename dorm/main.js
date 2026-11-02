@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { buildDorm, ROOM, WINDOW } from './room.js';
 import { menu } from './menu.js';
+import { fortyhands } from './fortyhands.js';
 
 const SHEET = 'https://script.google.com/macros/s/AKfycbylJz7wB3gsmglRWmgsseErFp6sFF_jLC71Q6zkl9L63NyAcJ9879PNMiz7nYDYbe_9Dw/exec';   // the bedroom's sheet (tools/visitors.gs), which keeps the board too
 
@@ -31,7 +32,7 @@ const tube = new THREE.SpotLight('#fff3df', 22, 9, 1.4, 1, 1.3);
 tube.position.set(0, ROOM.h - 0.1, 0.2); tube.target.position.set(0, 0, 0.2);
 tube.castShadow = true; tube.shadow.mapSize.setScalar(2048); tube.shadow.bias = -0.002; tube.shadow.normalBias = 0.06; tube.shadow.radius = 5;
 scene.add(sky, tube, tube.target, new THREE.HemisphereLight('#eef2f8', '#8a7d6a', 0.55));
-const { door, board, ink, inkMap, tools, pack } = buildDorm(scene);
+const { door, board, ink, inkMap, tools, pack, fridge } = buildDorm(scene);
 renderer.shadowMap.needsUpdate = true;
 
 // just inside the door, a step toward the roommate's side, looking across at Bryan's bed and desk and the window; at his desk, over the
@@ -39,7 +40,7 @@ renderer.shadowMap.needsUpdate = true;
 // doorway still facing in, and the door closes in front of you
 const camera = new THREE.PerspectiveCamera(60, 1, 0.03, 100);
 const INSIDE = [new THREE.Vector3(-0.75, 1.6, 2.2), new THREE.Vector3(0.75, 0.95, -1.35)], HALL = [new THREE.Vector3(0.02, 1.53, 3.45), new THREE.Vector3(0.02, 1.47, 2.55)];
-const DESK = [new THREE.Vector3(0.38, 1.4, -1.0), new THREE.Vector3(1.42, 0.68, -1.82)];
+const DESK = [new THREE.Vector3(0.38, 1.4, -1.0), new THREE.Vector3(1.42, 0.68, -1.82)], FRIDGE = [new THREE.Vector3(0.3, 0.72, -1.2), new THREE.Vector3(-0.04, 0.27, -2.02)];   // and crouched at the fridge
 const OUTWARD = new THREE.CatmullRomCurve3([INSIDE[0], new THREE.Vector3(-0.15, 1.58, 1.9), new THREE.Vector3(0, 1.55, 2.8), HALL[0]]);
 const focus = INSIDE[1].clone(), UP = new THREE.Vector3(0, 1, 0);
 camera.position.copy(INSIDE[0]);
@@ -54,13 +55,14 @@ const status = document.getElementById('status'), back = document.getElementById
 let hush = 0;
 const say = (text, ms = 6000) => { status.textContent = text; status.style.opacity = 0.85; clearTimeout(hush); hush = setTimeout(() => { status.style.opacity = 0; }, ms); };
 say('Room 328, Chautauqua Hall, SUNY Fredonia. Fall 2003.', 7000);
+const game = fortyhands({ scene, camera, renderer, fridge, door, phone });   // the two forties in the fridge
 requestAnimationFrame(() => requestAnimationFrame(() => { document.getElementById('blink').style.opacity = 0; }));   // out of the white the flight ended in
 
 const clock = new THREE.Clock(), ease = x => (x = Math.min(1, Math.max(0, x))) * x * (3 - 2 * x);
-let where = 'inside', move = null;   // inside, desk, or hall; move: a trip between two of them
-const LABEL = { inside: 'THE HALL', desk: 'BACK', hall: 'BACK INSIDE' };
+let where = 'inside', move = null, cold = 0;   // inside, desk, fridge, or hall; move: a trip between two of them; cold: how far open the fridge is
+const LABEL = { inside: 'THE HALL', desk: 'BACK', fridge: 'BACK', hall: 'BACK INSIDE' };
 function go(to) {
-  if (move || held || to === where) return;
+  if (move || held || game.on || to === where) return;
   move = { from: where, to, t0: clock.getElapsedTime(), at: camera.position.clone(), look: focus.clone() }; where = to; back.textContent = LABEL[to];
   if (to === 'hall') { load(); say(`The door of 328. ${phone ? 'Tap' : 'Click'} a marker, then draw on the board; the eraser wipes it. Whoever comes by next sees what you leave.`, 9000); }
   if (to === 'desk') say(`Bryan's desk. ${phone ? 'Tap' : 'Click'} the Kamels.`, 4000);
@@ -103,8 +105,9 @@ async function save() {   // a sheet cell holds 50,000 characters: a busy board 
 }
 const canvas = renderer.domElement;
 canvas.addEventListener('pointerdown', e => {
-  if (move) return;
-  if (where === 'inside') { if (cast(e, deskArea)) go('desk'); else if (cast(e, [pane])) home(e); return; }
+  if (move || game.on) return;
+  if (where === 'inside') { if (cast(e, deskArea)) go('desk'); else if (cast(e, [fridge.front])) go('fridge'); else if (cast(e, [pane])) home(e); return; }
+  if (where === 'fridge') { if (!cast(e, fridge.items)) return go('inside'); go('inside'); return setTimeout(game.start); }   // after this click, so it isn't taken for a hand going up
   if (where === 'desk') { if (!held && cast(e, smokes)) takeUp(); else if (!held && !cast(e, deskArea)) go('inside'); return; }
   const hit = cast(e, [board, ...tools]);
   if (!hit) return;
@@ -112,7 +115,7 @@ canvas.addEventListener('pointerdown', e => {
   last = at(hit.uv); drawn = true; stroke(last, last); canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', e => {
-  if (where !== 'hall' && !move) canvas.style.cursor = !held && cast(e, where === 'inside' ? [desk, pane] : smokes) ? 'pointer' : '';
+  if (where !== 'hall' && !move && !game.on) canvas.style.cursor = !held && cast(e, { inside: [desk, pane, fridge.front], desk: smokes, fridge: fridge.items }[where]) ? 'pointer' : '';
   if (move || where !== 'hall') return;
   const hit = cast(e, [board, ...tools]);
   canvas.style.cursor = !hit ? '' : hit.object === board ? 'crosshair' : 'pointer';
@@ -169,7 +172,7 @@ renderer.setAnimationLoop(() => {
     door.rotation.y = -1.75 * (s < 1.5 ? ease(s / 0.6) : 1 - ease((s - 1.5) / 0.8));   // open into the room, then shut
     if (s > 2.3) { move = null; door.rotation.y = 0; }
   } else if (move) {   // across the room
-    const s = ease((t - move.t0) / 1.2), [to, toLook] = move.to === 'desk' ? DESK : INSIDE;
+    const s = ease((t - move.t0) / 1.2), [to, toLook] = { desk: DESK, fridge: FRIDGE }[move.to] ?? INSIDE;
     camera.position.lerpVectors(move.at, to, s); focus.lerpVectors(move.look, toLook, s);
     if (s === 1) move = null;
   }
@@ -181,6 +184,9 @@ renderer.setAnimationLoop(() => {
   aim.y += (-look.y * 0.6 + Math.sin(t * 0.11) * 0.03) * reach;
   camera.lookAt(aim);
   camera.updateMatrixWorld();
+  game.tick();
+  cold += ((where === 'fridge' ? 1 : 0) - cold) * 0.06;   // the door swings open as you crouch, and shut as you stand
+  fridge.door.rotation.y = -1.7 * ease(cold * 1.15); fridge.light.intensity = 0.5 * cold;
   if (held) hold(t);
   renderer.render(scene, camera);
 });

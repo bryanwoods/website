@@ -3,11 +3,12 @@
 // comforter, and, past the head of the bed by the window, his desk with the black Dell. The roommate's side (-x) is the same furniture, bare.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { buildFridge } from './fridge.js';
 
 export const ROOM = { x0: -1.75, x1: 1.75, z0: -2.5, z1: 2.5, h: 2.45 };
 export const WINDOW = { x0: -0.85, x1: 0.85, y0: 0.95, y1: 2.05, z: -2.5 };
 
-function canvas(w, h, draw, repeat) {
+export function canvas(w, h, draw, repeat) {
   const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
@@ -284,13 +285,6 @@ export function buildDorm(scene) {
   box(0.2, 0.004, 0.2, new THREE.MeshStandardMaterial({ color: '#2a3a6a', roughness: 0.9 }), dx - 0.2, 0.767, dz + 0.36);   // the mouse pad
   for (const o of [-0.3, 0.3]) { const sp = new THREE.Mesh(new RoundedBoxGeometry(0.08, 0.16, 0.07, 2, 0.01), plastic); sp.position.set(dx + 0.12, 0.85, dz + o); sp.castShadow = true; g.add(sp); }   // the speakers
 
-  // the mini fridge under the window between the two desks: a black cube of 2003, its handle a groove along the top of the door
-  const fridge = new THREE.MeshStandardMaterial({ color: '#151515', roughness: 0.32, metalness: 0.1 });
-  box(0.48, 0.5, 0.45, fridge, 0, 0.27, -2.07); box(0.47, 0.49, 0.02, fridge, 0, 0.27, -1.835);
-  box(0.3, 0.015, 0.012, new THREE.MeshStandardMaterial({ color: '#333', roughness: 0.6 }), 0, 0.49, -1.822);
-  box(0.06, 0.012, 0.002, new THREE.MeshStandardMaterial({ color: '#b8bcc0', metalness: 0.9, roughness: 0.3 }), -0.17, 0.08, -1.824);   // the maker's badge
-  for (const [fx, fz] of [[-0.2, -2.25], [0.2, -2.25], [-0.2, -1.88], [0.2, -1.88]]) box(0.03, 0.02, 0.03, black, fx, 0.01, fz);
-
   // and on Bryan's side only, a month of dining-hall cups: Pepsi fountain cups, some still with their lids and bendy straws, one knocked over
   const rand = (a => () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(328);   // the same mess every visit
   const pepsi = canvas(512, 256, (x, w, h) => {   // the 2003 cup: blue swirl, the globe, PEPSI up the side
@@ -384,5 +378,6 @@ export function buildDorm(scene) {
   smoke.position.set(-0.6, h - 0.015, -0.8); g.add(smoke);
 
   scene.add(g);
-  return { door, board, ink, inkMap, tools, pack };
+  const fridge = buildFridge(g);   // the mini fridge under the window between the two desks
+  return { door, board, ink, inkMap, tools, pack, fridge };
 }
