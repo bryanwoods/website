@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Office hours with Bryan Woods: AI engineering, agents, and SOC 2 for startups</title>
+<meta name="description" content="Bryan Woods keeps a few office hours each month for founders and engineering leaders who are stuck: AI engineering and agent workflows, SOC 2 for startups, telling real shifts from hype, and running lean.">
+<link rel="canonical" href="https://www.bryanwoods4e.com/office-hours/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F7F4EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)">
+
+<meta property="og:type" content="profile">
+<meta property="og:title" content="Office hours with Bryan Woods">
+<meta property="og:description" content="For builders who are stuck: AI engineering, agents that ship, SOC 2 for startups, and running lean.">
+<meta property="og:url" content="https://www.bryanwoods4e.com/office-hours/">
+<meta property="og:image" content="https://www.bryanwoods4e.com/office-hours/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Office hours with Bryan Woods, with a pixel-art portrait">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Bryan Woods",
+  "jobTitle": "Head of Engineering",
+  "worksFor": { "@type": "Organization", "name": "Arlo" },
+  "address": { "@type": "PostalAddress", "addressLocality": "New York" },
+  "url": "https://www.bryanwoods4e.com/office-hours/",
+  "image": "https://www.bryanwoods4e.com/office-hours/bryan.jpg",
+  "sameAs": ["https://www.linkedin.com/in/bryan-woods/"],
+  "knowsAbout": ["AI engineering", "AI coding agents", "SOC 2 for startups", "Startup security", "Engineering leadership", "Startup acquisitions"]
+}
+</script>
+
+<style>
+  :root {
+    --paper: #F7F4EE;
+    --ink: #1C1B19;
+    --muted: #6E6A63;
+    --accent: #E0533D;
+    --rule: color-mix(in srgb, var(--ink) 14%, transparent);
+    --field: #FFFDF9;
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "Inter", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #141413;
+      --ink: #ECE8E1;
+      --muted: #A39E95;
+      --field: #1D1C1A;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1.0625rem/1.65 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  main, footer { max-width: 40rem; margin: 0 auto; padding: 0 1.25rem; }
+  main { padding-top: clamp(3rem, 10vw, 6rem); }
+
+  h1, h2 { font-family: var(--serif); font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(2.4rem, 7vw, 3.25rem); margin: 0; font-variation-settings: "opsz" 144; }
+  h2 { font-size: 1.6rem; margin: 0 0 1.25rem; font-variation-settings: "opsz" 72; }
+  h3 { font: 600 1.0625rem/1.4 var(--sans); margin: 0 0 0.25rem; }
+  p { margin: 0 0 1rem; }
+
+  a { color: inherit; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 0.2em; }
+  a:hover { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  section { padding: 3rem 0; border-top: 1px solid var(--rule); }
+
+  .hero { display: grid; grid-template-columns: auto 1fr; gap: 1.5rem 1.75rem; align-items: center; padding-bottom: 3rem; }
+  .hero .intro { grid-column: 1 / -1; }
+  .tagline { font-family: var(--serif); font-style: italic; font-size: 1.2rem; color: var(--muted); margin: 0.5rem 0 0; }
+  @media (max-width: 30rem) { .hero { grid-template-columns: 1fr; } }
+
+  .portrait { position: relative; display: block; width: 176px; height: 176px; margin: 0; cursor: pointer; border-radius: 4px; overflow: hidden; }
+  .portrait img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .portrait .pixel { image-rendering: pixelated; }
+  .portrait .photo { opacity: 0; transition: opacity 400ms ease; object-fit: cover; }
+  .portrait:hover .photo, .portrait:focus .photo { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .portrait .photo { transition: none; } }
+
+  .stats { list-style: none; margin: 1.5rem 0 0; padding: 0; font: 400 0.8125rem/1.9 var(--mono); color: var(--muted); }
+  .stats li { display: inline-block; white-space: nowrap; }
+  .stats li:not(:last-child)::after { content: "·"; color: var(--accent); font-weight: 500; margin: 0 0.6em; }
+  .stats b { color: var(--ink); font-weight: 500; }
+
+  .help { list-style: none; margin: 0; padding: 0; counter-reset: help; }
+  .help li { counter-increment: help; position: relative; padding-left: 2.5rem; margin-bottom: 1.75rem; }
+  .help li::before { content: counter(help, decimal-leading-zero); position: absolute; left: 0; top: 0.15rem; font: 500 0.8125rem var(--mono); color: var(--accent); }
+  .help p { margin: 0; }
+
+  .writing { list-style: none; margin: 0; padding: 0; }
+  .writing li { display: flex; gap: 1rem; justify-content: space-between; align-items: baseline; padding: 0.6rem 0; border-bottom: 1px dashed var(--rule); }
+  .writing time { font: 400 0.8125rem var(--mono); color: var(--muted); white-space: nowrap; }
+  .todo { color: var(--muted); font-style: italic; }
+
+  form { display: grid; gap: 1.1rem; margin-top: 1.75rem; }
+  label { display: block; font-weight: 500; font-size: 0.9375rem; margin-bottom: 0.35rem; }
+  input, textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--field);
+    border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent); border-radius: 6px; padding: 0.65rem 0.8rem;
+  }
+  textarea { min-height: 7rem; resize: vertical; }
+  input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+  .gotcha { position: absolute; left: -9999px; }
+  button {
+    justify-self: start; font: 600 1rem var(--sans); color: var(--paper); background: var(--ink);
+    border: 0; border-radius: 6px; padding: 0.75rem 1.4rem; cursor: pointer;
+  }
+  button:hover:enabled { background: var(--accent); color: #1C1B19; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .note { margin: 0; color: var(--muted); font-size: 0.9375rem; }
+
+  footer { width: min(37.5rem, 100% - 2.5rem); padding: 2rem 0 3rem; margin: 0 auto; border-top: 1px solid var(--rule); font: 400 0.8125rem var(--mono); color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+  footer a { color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <figure class="portrait" tabindex="0">
+      <img class="pixel" src="bryan-pixel.png" width="64" height="64" alt="Bryan Woods, pixel-art portrait">
+      <img class="photo" src="bryan.jpg" width="400" height="400" alt="" loading="lazy">
+    </figure>
+    <div>
+      <h1>Bryan Woods</h1>
+      <p class="tagline">An engineer and founder who likes getting people unstuck.</p>
+    </div>
+    <div class="intro">
+      <p>I've built software for twenty years. I spent ten of them as co-founder and CTO of a company that helped create a new industry. Hundreds of millions of dollars have moved through systems I built. Along the way I've hit most of the walls founders and engineering leaders hit. If you're up against one now, <a href="#office-hours">write to me</a>. Most problems look smaller once you talk to someone who has seen them before.</p>
+      <ul class="stats" aria-label="Background in numbers">
+        <li><b>$150M</b> raised</li>
+        <li><b>Hundreds of millions</b> in premium processed</li>
+        <li><b>3 → 350 → 60</b> employees</li>
+        <li><b>10 years</b> as co-founder &amp; CTO</li>
+      </ul>
+    </div>
+  </header>
+
+  <section aria-labelledby="help">
+    <h2 id="help">Things I can help with</h2>
+    <ol class="help">
+      <li>
+        <h3>Getting agents to ship, not just type.</h3>
+        <p>Most teams are stuck at "Claude writes the code." The next step is a closed loop. Agents write the code and prove it works. Fast, reliable CI checks every change. Cautious rules decide what can merge without a person. Production watches for regressions and reverts them on its own. At Arlo I built that software factory, and it lets our very small team ship hundreds of PRs a week. I can help you find your team's next step.</p>
+      </li>
+      <li>
+        <h3>SOC 2 and security, when you actually need them.</h3>
+        <p>Most founders asking about SOC 2 need a 30-minute conversation more than a 6-month project. I've served as a CISO. I can help you decide whether you need it yet. If you do, I can help you get it done without stalling your roadmap.</p>
+      </li>
+      <li>
+        <h3>Telling real shifts from hype.</h3>
+        <p>I believe in <a href="https://boringtechnology.club/">boring technology</a>. I skipped NoSQL-for-everything, and I never put anything on the blockchain. I did go all in on agents. I can help you sort what's worth adopting now from what you can safely ignore.</p>
+      </li>
+      <li>
+        <h3>Buying a struggling startup, and running lean after.</h3>
+        <p>Rhino acquired Jetty while I was there. I've scaled a company to 350 people and run it with 60. I know which is harder, and what AI changes about both.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="writing">
+    <h2 id="writing">Some things I've written</h2>
+    <ul class="writing">
+      <li><a href="https://www.linkedin.com/feed/update/urn:li:activity:7508906684392792064/">Agents open PRs faster than we can read them. So we route them.</a> <time datetime="2026-09">Sep 2026</time></li>
+      <li><a href="https://www.linkedin.com/feed/update/urn:li:activity:7519405093583130624/">Formal verification used to be too expensive. Not anymore.</a> <time datetime="2026-10">Oct 2026</time></li>
+      <li><a href="https://www.linkedin.com/feed/update/urn:li:activity:7457595035627245569/">"Where's the proof?" One month of shipping with AI</a> <time datetime="2026-05">May 2026</time></li>
+      <li><a href="https://www.linkedin.com/feed/update/urn:li:activity:7488247792809836544/">Ten years and 27 days at Rhino</a> <time datetime="2026-07">Jul 2026</time></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="background">
+    <h2 id="background">Background</h2>
+    <p>I'm Head of Engineering at Arlo, where we use AI to fix health insurance. Before that I co-founded Rhino in 2016 and served as its CTO and CISO for ten years. Before Rhino I was a founding engineer at startups that were acquired by Facebook, IAC, Samsung, and Nike. I live in New York.</p>
+  </section>
+
+  <section id="office-hours" aria-labelledby="oh">
+    <h2 id="oh">Office hours</h2>
+    <p>I keep a few slots open each month for builders working through these problems. Tell me what you're building and where you're stuck. I read every note. If I think I can help, we'll find time to talk.</p>
+    <form action="https://formspree.io/f/FORMSPREE_FORM_ID" method="POST">
+      <input type="hidden" name="_subject" value="Office hours: a new note">
+      <div class="gotcha" aria-hidden="true"><label for="gotcha">Leave this empty</label><input id="gotcha" type="text" name="_gotcha" tabindex="-1" autocomplete="off"></div>
+      <div><label for="name">Name</label><input id="name" name="name" type="text" autocomplete="name" required></div>
+      <div><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+      <div><label for="building">What are you building?</label><textarea id="building" name="building" rows="3" required></textarea></div>
+      <div><label for="stuck">Where are you stuck?</label><textarea id="stuck" name="stuck" rows="4" required></textarea></div>
+      <button type="submit" disabled>Send it</button>
+      <p class="note">The form opens soon. Until then, email me at <a href="mailto:bryanwoods4e@gmail.com">bryanwoods4e@gmail.com</a>.</p>
+    </form>
+  </section>
+</main>
+<footer>
+  <a href="https://www.linkedin.com/in/bryan-woods/">LinkedIn</a>
+  <a href="mailto:bryanwoods4e@gmail.com">bryanwoods4e@gmail.com</a>
+  <span>New York</span>
+</footer>
+</body>
+</html>
