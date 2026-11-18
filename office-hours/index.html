@@ -17,9 +17,10 @@
 <meta property="og:image" content="https://www.bryanwoods4e.com/office-hours/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Office hours with Bryan Woods, with a pixel-art portrait">
+<meta property="og:image:alt" content="Office hours with Bryan Woods, with a portrait made of characters">
 <meta name="twitter:card" content="summary_large_image">
 
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
@@ -93,8 +94,10 @@
   @media (max-width: 30rem) { .hero { grid-template-columns: 1fr; } }
 
   .portrait { position: relative; display: block; width: 176px; height: 176px; margin: 0; cursor: pointer; border-radius: 4px; overflow: hidden; }
-  .portrait img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .portrait .pixel { image-rendering: pixelated; }
+  .portrait img, .portrait canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .portrait canvas { visibility: hidden; }
+  .portrait.live canvas { visibility: visible; }
+  .portrait.live .still { visibility: hidden; }
   .portrait .photo { opacity: 0; transition: opacity 400ms ease; object-fit: cover; }
   .portrait:hover .photo, .portrait:focus .photo { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { .portrait .photo { transition: none; } }
@@ -138,8 +141,9 @@
 <body>
 <main>
   <header class="hero">
-    <figure class="portrait" tabindex="0">
-      <img class="pixel" src="bryan-pixel.png" width="64" height="64" alt="Bryan Woods, pixel-art portrait">
+    <figure class="portrait" tabindex="0" role="img" aria-label="Bryan Woods, a portrait made of characters">
+      <picture class="still"><source srcset="portrait-dark.png" media="(prefers-color-scheme: dark)"><img src="portrait-light.png" width="176" height="176" alt=""></picture>
+      <canvas data-portrait width="176" height="176"></canvas>
       <img class="photo" src="bryan.jpg" width="400" height="400" alt="" loading="lazy">
     </figure>
     <div>
@@ -214,5 +218,7 @@
   <a href="mailto:bryanwoods4e@gmail.com">bryanwoods4e@gmail.com</a>
   <span>New York</span>
 </footer>
+<script src="portrait-data.js" defer></script>
+<script src="portrait.js" defer></script>
 </body>
 </html>

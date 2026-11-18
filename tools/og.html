@@ -2,16 +2,19 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=JetBrains+Mono:wght@400;500&display=block">
 <style>
-  html, body { margin: 0; width: 1200px; height: 630px; background: #F7F4EE; color: #1C1B19; }
+  :root { --ink: #ECE8E1; --accent: #E0533D; }
+  html, body { margin: 0; width: 1200px; height: 630px; background: #141413; color: #ECE8E1; }
   body { display: flex; align-items: center; gap: 72px; padding: 0 96px; box-sizing: border-box; }
-  img { width: 320px; height: 320px; image-rendering: pixelated; border-radius: 6px; flex: none; }
+  .portrait, canvas { width: 360px; height: 360px; display: block; flex: none; }
   .k { font: 500 22px "JetBrains Mono", monospace; color: #E0533D; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 18px; }
   h1 { font: 600 76px/1.05 "Fraunces", serif; font-variation-settings: "opsz" 144; margin: 0 0 24px; letter-spacing: -0.01em; }
-  p { font: 400 24px/1.5 "JetBrains Mono", monospace; color: #6E6A63; margin: 0; }
+  p { font: 400 24px/1.5 "JetBrains Mono", monospace; color: #A39E95; margin: 0; }
 </style>
-<img src="../office-hours/bryan-pixel.png" alt="">
+<div class="portrait"><canvas data-portrait></canvas></div>
 <div>
   <p class="k">Office hours</p>
   <h1>Bryan Woods</h1>
   <p>AI engineering · agents that ship<br>SOC 2 for startups · running lean</p>
 </div>
+<script src="../office-hours/portrait-data.js"></script>
+<script src="../office-hours/portrait.js"></script>
