@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Office hours with Bryan Woods: AI engineering, agents, and SOC 2 for startups</title>
-<meta name="description" content="Bryan Woods keeps a few office hours each month for founders and engineering leaders who are stuck: AI engineering and agent workflows, SOC 2 for startups, telling real shifts from hype, and running lean.">
+<title>Bryan Woods: advising startups on AI engineering, agents, and SOC 2</title>
+<meta name="description" content="Bryan Woods works with a small number of founders and engineering leaders at a time on AI engineering and agent workflows, SOC 2 for startups, telling real shifts from hype, and running lean.">
 <link rel="canonical" href="https://www.bryanwoods4e.com/office-hours/">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F7F4EE" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)">
 
 <meta property="og:type" content="profile">
-<meta property="og:title" content="Office hours with Bryan Woods">
-<meta property="og:description" content="For builders who are stuck: AI engineering, agents that ship, SOC 2 for startups, and running lean.">
+<meta property="og:title" content="Bryan Woods: advising startups on AI engineering">
+<meta property="og:description" content="For founders and engineering leaders who are stuck: AI engineering, agents that ship, SOC 2 for startups, and running lean.">
 <meta property="og:url" content="https://www.bryanwoods4e.com/office-hours/">
 <meta property="og:image" content="https://www.bryanwoods4e.com/office-hours/og.png">
 <meta property="og:image:width" content="1200">
@@ -119,6 +119,7 @@
 
   form { display: grid; gap: 1.1rem; margin-top: 1.75rem; }
   label { display: block; font-weight: 500; font-size: 0.9375rem; margin-bottom: 0.35rem; }
+  .optional { font-weight: 400; color: var(--muted); }
   input, textarea {
     width: 100%; font: inherit; color: var(--ink); background: var(--field);
     border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent); border-radius: 6px; padding: 0.65rem 0.8rem;
@@ -199,16 +200,18 @@
   </section>
 
   <section id="office-hours" aria-labelledby="oh">
-    <h2 id="oh">Office hours</h2>
-    <p>I keep a few slots open each month for builders working through these problems. Tell me what you're building and where you're stuck. I read every note. If I think I can help, we'll find time to talk.</p>
+    <h2 id="oh">Working together</h2>
+    <p>Some problems take one conversation. Most take a few weeks of working side by side. I work with a small number of teams at a time, usually as an advisor to the founder or the engineering lead.</p>
+    <p>Tell me what you're building and where you're stuck. I read every note. If it's a good fit, we'll set up a call and figure out what working together looks like.</p>
     <form action="https://formspree.io/f/FORMSPREE_FORM_ID" method="POST">
-      <input type="hidden" name="_subject" value="Office hours: a new note">
+      <input type="hidden" name="_subject" value="Working together: a new note">
       <div class="gotcha" aria-hidden="true"><label for="gotcha">Leave this empty</label><input id="gotcha" type="text" name="_gotcha" tabindex="-1" autocomplete="off"></div>
       <div><label for="name">Name</label><input id="name" name="name" type="text" autocomplete="name" required></div>
       <div><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></div>
       <div><label for="building">What are you building?</label><textarea id="building" name="building" rows="3" required></textarea></div>
       <div><label for="stuck">Where are you stuck?</label><textarea id="stuck" name="stuck" rows="4" required></textarea></div>
-      <button type="submit" disabled>Send it</button>
+      <div><label for="outcome">What would a good outcome look like? <span class="optional">(optional)</span></label><textarea id="outcome" name="outcome" rows="3"></textarea></div>
+      <button type="submit" disabled>Start a conversation</button>
       <p class="note">The form opens soon. Until then, email me at <a href="mailto:bryanwoods4e@gmail.com">bryanwoods4e@gmail.com</a>.</p>
     </form>
   </section>
